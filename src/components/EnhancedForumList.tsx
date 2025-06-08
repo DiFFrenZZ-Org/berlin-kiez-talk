@@ -19,11 +19,13 @@ interface ForumPost {
   likes_count: number;
   replies_count: number;
   created_at: string;
-  profiles: {
+  user_id: string | null;
+  category_id: string | null;
+  profile?: {
     nickname: string | null;
     borough: string | null;
   } | null;
-  forum_categories: {
+  category?: {
     name: string;
     color: string;
     icon: string | null;
@@ -82,13 +84,11 @@ export const EnhancedForumList = ({ userProfile }: EnhancedForumListProps) => {
 
   const fetchPosts = async () => {
     setLoading(true);
+    
+    // First fetch posts
     let query = supabase
       .from('forum_posts')
-      .select(`
-        *,
-        profiles (nickname, borough),
-        forum_categories (name, color, icon)
-      `)
+      .select('*')
       .eq('is_private', false)
       .order('created_at', { ascending: false });
 
@@ -97,32 +97,69 @@ export const EnhancedForumList = ({ userProfile }: EnhancedForumListProps) => {
     }
 
     if (selectedPostType !== 'all') {
-      query = query.eq('post_type', selectedPostType);
+      query = query.eq('post_type', selectedPostType as 'offering' | 'searching' | 'discussion');
     }
 
     if (selectedBorough !== 'all') {
       query = query.eq('borough', selectedBorough);
     }
 
-    const { data, error } = await query;
+    const { data: postsData, error: postsError } = await query;
 
-    if (error) {
-      console.error('Error fetching posts:', error);
-    } else {
-      const transformedData = (data || []).map(post => ({
-        ...post,
-        profiles: post.profiles ? {
-          nickname: post.profiles.nickname,
-          borough: post.profiles.borough
-        } : null,
-        forum_categories: post.forum_categories ? {
-          name: post.forum_categories.name,
-          color: post.forum_categories.color,
-          icon: post.forum_categories.icon
-        } : null
-      }));
-      setPosts(transformedData);
+    if (postsError) {
+      console.error('Error fetching posts:', postsError);
+      setLoading(false);
+      return;
     }
+
+    // Fetch related data separately
+    const enrichedPosts: ForumPost[] = [];
+    
+    for (const post of postsData || []) {
+      let profile = null;
+      let category = null;
+
+      // Fetch profile data if user_id exists
+      if (post.user_id) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('nickname, borough')
+          .eq('id', post.user_id)
+          .single();
+        
+        if (profileData) {
+          profile = {
+            nickname: profileData.nickname,
+            borough: profileData.borough
+          };
+        }
+      }
+
+      // Fetch category data if category_id exists
+      if (post.category_id) {
+        const { data: categoryData } = await supabase
+          .from('forum_categories')
+          .select('name, color, icon')
+          .eq('id', post.category_id)
+          .single();
+        
+        if (categoryData) {
+          category = {
+            name: categoryData.name,
+            color: categoryData.color,
+            icon: categoryData.icon
+          };
+        }
+      }
+
+      enrichedPosts.push({
+        ...post,
+        profile,
+        category
+      });
+    }
+
+    setPosts(enrichedPosts);
     setLoading(false);
   };
 
@@ -244,9 +281,9 @@ export const EnhancedForumList = ({ userProfile }: EnhancedForumListProps) => {
                       <Badge className={`${postTypeInfo.color} text-white`}>
                         {postTypeInfo.label}
                       </Badge>
-                      {post.forum_categories && (
+                      {post.category && (
                         <Badge variant="outline" className="border-blue-400 text-blue-300">
-                          {post.forum_categories.name}
+                          {post.category.name}
                         </Badge>
                       )}
                       {post.borough && (
@@ -263,9 +300,9 @@ export const EnhancedForumList = ({ userProfile }: EnhancedForumListProps) => {
                   
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4 text-xs text-blue-300">
-                      <span>von {post.profiles?.nickname || 'Anonym'}</span>
-                      {post.profiles?.borough && (
-                        <span>aus {post.profiles.borough}</span>
+                      <span>von {post.profile?.nickname || 'Anonym'}</span>
+                      {post.profile?.borough && (
+                        <span>aus {post.profile.borough}</span>
                       )}
                     </div>
                     <div className="flex items-center space-x-4 text-xs text-blue-300">

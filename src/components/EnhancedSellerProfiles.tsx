@@ -20,13 +20,15 @@ interface SellerListing {
   rating_average: number;
   rating_count: number;
   created_at: string;
-  profiles: {
+  seller_id: string | null;
+  category_id: string | null;
+  profile?: {
     nickname: string | null;
     subscription_active: boolean;
     subscription_tier: string;
     borough: string | null;
   } | null;
-  forum_categories: {
+  category?: {
     name: string;
     color: string;
   } | null;
@@ -71,13 +73,11 @@ export const EnhancedSellerProfiles = ({ userProfile }: EnhancedSellerProfilesPr
 
   const fetchListings = async () => {
     setLoading(true);
+    
+    // First fetch listings
     let query = supabase
       .from('seller_listings')
-      .select(`
-        *,
-        profiles (nickname, subscription_active, subscription_tier, borough),
-        forum_categories (name, color)
-      `)
+      .select('*')
       .eq('is_active', true);
 
     if (selectedCategory !== 'all') {
@@ -102,26 +102,63 @@ export const EnhancedSellerProfiles = ({ userProfile }: EnhancedSellerProfilesPr
         break;
     }
 
-    const { data, error } = await query;
+    const { data: listingsData, error: listingsError } = await query;
 
-    if (error) {
-      console.error('Error fetching listings:', error);
-    } else {
-      const transformedData = (data || []).map(listing => ({
-        ...listing,
-        profiles: listing.profiles ? {
-          nickname: listing.profiles.nickname,
-          subscription_active: listing.profiles.subscription_active,
-          subscription_tier: listing.profiles.subscription_tier,
-          borough: listing.profiles.borough
-        } : null,
-        forum_categories: listing.forum_categories ? {
-          name: listing.forum_categories.name,
-          color: listing.forum_categories.color
-        } : null
-      }));
-      setListings(transformedData);
+    if (listingsError) {
+      console.error('Error fetching listings:', listingsError);
+      setLoading(false);
+      return;
     }
+
+    // Fetch related data separately
+    const enrichedListings: SellerListing[] = [];
+    
+    for (const listing of listingsData || []) {
+      let profile = null;
+      let category = null;
+
+      // Fetch profile data if seller_id exists
+      if (listing.seller_id) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('nickname, subscription_active, subscription_tier, borough')
+          .eq('id', listing.seller_id)
+          .single();
+        
+        if (profileData) {
+          profile = {
+            nickname: profileData.nickname,
+            subscription_active: profileData.subscription_active,
+            subscription_tier: profileData.subscription_tier,
+            borough: profileData.borough
+          };
+        }
+      }
+
+      // Fetch category data if category_id exists
+      if (listing.category_id) {
+        const { data: categoryData } = await supabase
+          .from('forum_categories')
+          .select('name, color')
+          .eq('id', listing.category_id)
+          .single();
+        
+        if (categoryData) {
+          category = {
+            name: categoryData.name,
+            color: categoryData.color
+          };
+        }
+      }
+
+      enrichedListings.push({
+        ...listing,
+        profile,
+        category
+      });
+    }
+
+    setListings(enrichedListings);
     setLoading(false);
   };
 
@@ -239,9 +276,9 @@ export const EnhancedSellerProfiles = ({ userProfile }: EnhancedSellerProfilesPr
                         ⭐ Featured
                       </Badge>
                     )}
-                    {listing.forum_categories && (
+                    {listing.category && (
                       <Badge variant="outline" className="border-blue-400 text-blue-300 text-xs">
-                        {listing.forum_categories.name}
+                        {listing.category.name}
                       </Badge>
                     )}
                   </div>
@@ -275,11 +312,11 @@ export const EnhancedSellerProfiles = ({ userProfile }: EnhancedSellerProfilesPr
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
                     <span className="text-xs text-blue-300">
-                      {listing.profiles?.nickname || 'Anonym'}
+                      {listing.profile?.nickname || 'Anonym'}
                     </span>
-                    {listing.profiles?.subscription_active && (
+                    {listing.profile?.subscription_active && (
                       <Badge className="bg-blue-600 text-white text-xs">
-                        {listing.profiles.subscription_tier}
+                        {listing.profile.subscription_tier}
                       </Badge>
                     )}
                   </div>
