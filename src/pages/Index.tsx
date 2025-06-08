@@ -4,23 +4,12 @@ import { LocationCheck } from "@/components/LocationCheck";
 import { AuthFlow } from "@/components/AuthFlow";
 import { Dashboard } from "@/components/Dashboard";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
 const Index = () => {
   const [isInBerlin, setIsInBerlin] = useState<boolean | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [userRole, setUserRole] = useState<'seller' | 'buyer' | null>(null);
+  const { user, profile, loading } = useAuth();
   const { toast } = useToast();
-
-  useEffect(() => {
-    // Check if user is already authenticated
-    const savedAuth = localStorage.getItem('berlinChat_auth');
-    const savedRole = localStorage.getItem('berlinChat_role') as 'seller' | 'buyer' | null;
-    
-    if (savedAuth && savedRole) {
-      setIsAuthenticated(true);
-      setUserRole(savedRole);
-    }
-  }, []);
 
   const handleLocationVerified = (inBerlin: boolean) => {
     setIsInBerlin(inBerlin);
@@ -33,16 +22,14 @@ const Index = () => {
     }
   };
 
-  const handleAuthComplete = (role: 'seller' | 'buyer') => {
-    setIsAuthenticated(true);
-    setUserRole(role);
-    localStorage.setItem('berlinChat_auth', 'true');
-    localStorage.setItem('berlinChat_role', role);
-    toast({
-      title: "Willkommen!",
-      description: `Sie sind als ${role === 'seller' ? 'Verkäufer' : 'Käufer'} angemeldet.`,
-    });
-  };
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 flex items-center justify-center">
+        <div className="text-white">Lädt...</div>
+      </div>
+    );
+  }
 
   // Show location check first
   if (isInBerlin === null) {
@@ -62,12 +49,12 @@ const Index = () => {
   }
 
   // Show auth flow if not authenticated
-  if (!isAuthenticated || !userRole) {
-    return <AuthFlow onAuthComplete={handleAuthComplete} />;
+  if (!user || !profile) {
+    return <AuthFlow />;
   }
 
   // Show main dashboard
-  return <Dashboard userRole={userRole} />;
+  return <Dashboard userProfile={profile} />;
 };
 
 export default Index;

@@ -5,12 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { UserProfile } from "@/hooks/useAuth";
 
 interface ChatInterfaceProps {
-  userRole: 'seller' | 'buyer';
+  userProfile: UserProfile;
 }
 
-export const ChatInterface = ({ userRole }: ChatInterfaceProps) => {
+export const ChatInterface = ({ userProfile }: ChatInterfaceProps) => {
   const [message, setMessage] = useState('');
   const [activeChat, setActiveChat] = useState<string | null>(null);
 

@@ -1,23 +1,44 @@
 
 import { useState } from "react";
-import { MessageSquare, Users, MapPin, Settings, Star, CreditCard } from "lucide-react";
+import { MessageSquare, Users, MapPin, Settings, Star, CreditCard, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChatInterface } from "@/components/ChatInterface";
-import { ForumList } from "@/components/ForumList";
-import { SellerProfiles } from "@/components/SellerProfiles";
+import { EnhancedForumList } from "@/components/EnhancedForumList";
+import { EnhancedSellerProfiles } from "@/components/EnhancedSellerProfiles";
+import { UserProfile } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
 interface DashboardProps {
-  userRole: 'seller' | 'buyer';
+  userProfile: UserProfile;
 }
 
-export const Dashboard = ({ userRole }: DashboardProps) => {
-  const [activeTab, setActiveTab] = useState<'chat' | 'forum' | 'sellers' | 'profile'>('chat');
+export const Dashboard = ({ userProfile }: DashboardProps) => {
+  const [activeTab, setActiveTab] = useState<'forum' | 'chat' | 'sellers' | 'profile'>('forum');
+  const { signOut } = useAuth();
+  const { toast } = useToast();
+
+  const handleSignOut = async () => {
+    const { error } = await signOut();
+    if (error) {
+      toast({
+        title: "Fehler",
+        description: "Fehler beim Abmelden",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Abgemeldet",
+        description: "Sie wurden erfolgreich abgemeldet.",
+      });
+    }
+  };
 
   const tabs = [
-    { id: 'chat', label: 'Chats', icon: MessageSquare },
     { id: 'forum', label: 'Forum', icon: Users },
+    { id: 'chat', label: 'Chats', icon: MessageSquare },
     { id: 'sellers', label: 'Verkäufer', icon: Star },
     { id: 'profile', label: 'Profil', icon: Settings },
   ];
@@ -31,18 +52,37 @@ export const Dashboard = ({ userRole }: DashboardProps) => {
             <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
               <MapPin className="h-5 w-5 text-white" />
             </div>
-            <h1 className="text-xl font-bold text-white">BerlinChat</h1>
+            <h1 className="text-xl font-bold text-white">KiezTalk</h1>
           </div>
           <div className="flex items-center space-x-3">
-            <Badge variant={userRole === 'seller' ? 'default' : 'secondary'} className="bg-blue-600">
-              {userRole === 'seller' ? 'Verkäufer' : 'Käufer'}
+            <div className="text-right text-sm">
+              <div className="text-white font-medium">{userProfile.nickname}</div>
+              <div className="text-blue-300 text-xs">{userProfile.borough}</div>
+            </div>
+            <Badge variant={userProfile.user_role === 'seller' ? 'default' : 'secondary'} className="bg-blue-600">
+              {userProfile.user_role === 'seller' ? 'Verkäufer' : 'Käufer'}
             </Badge>
-            {userRole === 'seller' && (
-              <Badge variant="outline" className="border-green-400 text-green-300">
+            {userProfile.user_role === 'seller' && (
+              <Badge 
+                variant="outline" 
+                className={`${
+                  userProfile.subscription_active 
+                    ? 'border-green-400 text-green-300' 
+                    : 'border-red-400 text-red-300'
+                }`}
+              >
                 <CreditCard className="h-3 w-3 mr-1" />
-                Aktiv
+                {userProfile.subscription_active ? 'Aktiv' : 'Inaktiv'}
               </Badge>
             )}
+            <Button
+              onClick={handleSignOut}
+              variant="ghost"
+              size="sm"
+              className="text-blue-300 hover:text-white"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       </header>
@@ -72,9 +112,9 @@ export const Dashboard = ({ userRole }: DashboardProps) => {
 
         {/* Content */}
         <div className="space-y-6">
-          {activeTab === 'chat' && <ChatInterface userRole={userRole} />}
-          {activeTab === 'forum' && <ForumList />}
-          {activeTab === 'sellers' && <SellerProfiles />}
+          {activeTab === 'forum' && <EnhancedForumList userProfile={userProfile} />}
+          {activeTab === 'chat' && <ChatInterface userProfile={userProfile} />}
+          {activeTab === 'sellers' && <EnhancedSellerProfiles userProfile={userProfile} />}
           {activeTab === 'profile' && (
             <Card className="bg-white/10 backdrop-blur-md border-white/20 text-white">
               <CardHeader>
@@ -84,7 +124,46 @@ export const Dashboard = ({ userRole }: DashboardProps) => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-blue-200">Profil-Einstellungen kommen bald...</p>
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="font-semibold mb-2">Benutzerinformationen</h3>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-blue-300">Nickname:</span>
+                        <span className="ml-2">{userProfile.nickname}</span>
+                      </div>
+                      <div>
+                        <span className="text-blue-300">Bezirk:</span>
+                        <span className="ml-2">{userProfile.borough}</span>
+                      </div>
+                      <div>
+                        <span className="text-blue-300">Rolle:</span>
+                        <span className="ml-2">{userProfile.user_role === 'seller' ? 'Verkäufer' : 'Käufer'}</span>
+                      </div>
+                      <div>
+                        <span className="text-blue-300">Reputation:</span>
+                        <span className="ml-2">{userProfile.reputation_score}</span>
+                      </div>
+                    </div>
+                  </div>
+                  {userProfile.user_role === 'seller' && (
+                    <div>
+                      <h3 className="font-semibold mb-2">Verkäufer-Status</h3>
+                      <div className="text-sm space-y-1">
+                        <div>
+                          <span className="text-blue-300">Abo-Tier:</span>
+                          <span className="ml-2 capitalize">{userProfile.subscription_tier}</span>
+                        </div>
+                        <div>
+                          <span className="text-blue-300">Status:</span>
+                          <span className={`ml-2 ${userProfile.subscription_active ? 'text-green-400' : 'text-red-400'}`}>
+                            {userProfile.subscription_active ? 'Aktiv' : 'Inaktiv'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           )}
