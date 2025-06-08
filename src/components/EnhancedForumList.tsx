@@ -1,21 +1,13 @@
 
 import { useState, useEffect } from "react";
-import { MessageCircle, ThumbsUp, MapPin, Plus, Filter } from "lucide-react";
+import { MessageSquare, Eye, Heart, Filter, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
 import { UserProfile } from "@/hooks/useAuth";
-import { useToast } from "@/hooks/use-toast";
-
-interface ForumCategory {
-  id: string;
-  name: string;
-  description: string;
-  color: string;
-  icon: string;
-}
+import { supabase } from "@/integrations/supabase/client";
 
 interface ForumPost {
   id: string;
@@ -28,108 +20,119 @@ interface ForumPost {
   replies_count: number;
   created_at: string;
   profiles: {
-    nickname: string;
-    borough: string;
-  };
+    nickname: string | null;
+    borough: string | null;
+  } | null;
   forum_categories: {
     name: string;
     color: string;
-  };
+    icon: string | null;
+  } | null;
+}
+
+interface ForumCategory {
+  id: string;
+  name: string;
+  color: string;
+  icon: string | null;
 }
 
 interface EnhancedForumListProps {
   userProfile: UserProfile;
 }
 
-const berlinBoroughs = [
-  'Alle Bezirke', 'Mitte', 'Friedrichshain-Kreuzberg', 'Pankow', 'Charlottenburg-Wilmersdorf',
-  'Spandau', 'Steglitz-Zehlendorf', 'Tempelhof-Schöneberg', 'Neukölln', 
-  'Treptow-Köpenick', 'Marzahn-Hellersdorf', 'Lichtenberg', 'Reinickendorf'
-];
-
 export const EnhancedForumList = ({ userProfile }: EnhancedForumListProps) => {
-  const [categories, setCategories] = useState<ForumCategory[]>([]);
   const [posts, setPosts] = useState<ForumPost[]>([]);
-  const [selectedBorough, setSelectedBorough] = useState('Alle Bezirke');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedPostType, setSelectedPostType] = useState('all');
+  const [categories, setCategories] = useState<ForumCategory[]>([]);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedPostType, setSelectedPostType] = useState<string>('all');
+  const [selectedBorough, setSelectedBorough] = useState<string>(userProfile.borough || 'all');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const berlinBoroughs = [
+    'Mitte', 'Friedrichshain-Kreuzberg', 'Pankow', 'Charlottenburg-Wilmersdorf',
+    'Spandau', 'Steglitz-Zehlendorf', 'Tempelhof-Schöneberg', 'Neukölln', 
+    'Treptow-Köpenick', 'Marzahn-Hellersdorf', 'Lichtenberg', 'Reinickendorf'
+  ];
+
+  const postTypes = [
+    { value: 'offering', label: 'Bieten', color: 'bg-green-600' },
+    { value: 'searching', label: 'Suchen', color: 'bg-blue-600' },
+    { value: 'discussion', label: 'Diskussion', color: 'bg-purple-600' }
+  ];
 
   useEffect(() => {
     fetchCategories();
     fetchPosts();
-  }, [selectedBorough, selectedCategory, selectedPostType]);
+  }, [selectedCategory, selectedPostType, selectedBorough]);
 
   const fetchCategories = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('forum_categories')
-        .select('*')
-        .order('name');
+    const { data, error } = await supabase
+      .from('forum_categories')
+      .select('*')
+      .order('name');
 
-      if (error) throw error;
-      setCategories(data || []);
-    } catch (error) {
+    if (error) {
       console.error('Error fetching categories:', error);
+    } else {
+      setCategories(data || []);
     }
   };
 
   const fetchPosts = async () => {
-    try {
-      let query = supabase
-        .from('forum_posts')
-        .select(`
-          *,
-          profiles!inner(nickname, borough),
-          forum_categories(name, color)
-        `)
-        .order('created_at', { ascending: false });
+    setLoading(true);
+    let query = supabase
+      .from('forum_posts')
+      .select(`
+        *,
+        profiles (nickname, borough),
+        forum_categories (name, color, icon)
+      `)
+      .eq('is_private', false)
+      .order('created_at', { ascending: false });
 
-      if (selectedBorough !== 'Alle Bezirke') {
-        query = query.eq('borough', selectedBorough);
-      }
+    if (selectedCategory !== 'all') {
+      query = query.eq('category_id', selectedCategory);
+    }
 
-      if (selectedCategory !== 'all') {
-        query = query.eq('category_id', selectedCategory);
-      }
+    if (selectedPostType !== 'all') {
+      query = query.eq('post_type', selectedPostType);
+    }
 
-      if (selectedPostType !== 'all') {
-        query = query.eq('post_type', selectedPostType);
-      }
+    if (selectedBorough !== 'all') {
+      query = query.eq('borough', selectedBorough);
+    }
 
-      const { data, error } = await query;
+    const { data, error } = await query;
 
-      if (error) throw error;
-      setPosts(data || []);
-    } catch (error) {
+    if (error) {
       console.error('Error fetching posts:', error);
-      toast({
-        title: "Fehler",
-        description: "Beiträge konnten nicht geladen werden.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
+    } else {
+      const transformedData = (data || []).map(post => ({
+        ...post,
+        profiles: post.profiles ? {
+          nickname: post.profiles.nickname,
+          borough: post.profiles.borough
+        } : null,
+        forum_categories: post.forum_categories ? {
+          name: post.forum_categories.name,
+          color: post.forum_categories.color,
+          icon: post.forum_categories.icon
+        } : null
+      }));
+      setPosts(transformedData);
     }
+    setLoading(false);
   };
 
-  const getPostTypeColor = (type: string) => {
-    switch (type) {
-      case 'offering': return 'bg-green-600';
-      case 'searching': return 'bg-blue-600';
-      case 'discussion': return 'bg-gray-600';
-      default: return 'bg-gray-600';
-    }
-  };
+  const filteredPosts = posts.filter(post =>
+    post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    post.content.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  const getPostTypeLabel = (type: string) => {
-    switch (type) {
-      case 'offering': return 'Biete';
-      case 'searching': return 'Suche';
-      case 'discussion': return 'Diskussion';
-      default: return type;
-    }
+  const getPostTypeInfo = (type: string) => {
+    return postTypes.find(pt => pt.value === type) || postTypes[2];
   };
 
   const formatTimeAgo = (dateString: string) => {
@@ -137,59 +140,40 @@ export const EnhancedForumList = ({ userProfile }: EnhancedForumListProps) => {
     const now = new Date();
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
     
-    if (diffInHours < 1) return 'Gerade eben';
-    if (diffInHours < 24) return `${diffInHours} Std.`;
-    const diffInDays = Math.floor(diffInHours / 24);
-    if (diffInDays < 7) return `${diffInDays} Tag${diffInDays > 1 ? 'e' : ''}`;
-    return date.toLocaleDateString('de-DE');
+    if (diffInHours < 1) return 'vor wenigen Minuten';
+    if (diffInHours < 24) return `vor ${diffInHours}h`;
+    return `vor ${Math.floor(diffInHours / 24)}d`;
   };
 
   return (
     <div className="space-y-6">
-      {/* Header with New Topic Button */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-white">Berlin Forum</h2>
-          <p className="text-blue-200">Diskutieren Sie mit Ihrer Nachbarschaft</p>
-        </div>
-        <Button className="bg-green-600 hover:bg-green-700">
-          <Plus className="h-4 w-4 mr-2" />
-          Neues Thema
-        </Button>
-      </div>
-
-      {/* Enhanced Filters */}
-      <Card className="bg-white/10 backdrop-blur-md border-white/20">
-        <CardContent className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* Borough Filter */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-white">Bezirk</label>
-              <Select value={selectedBorough} onValueChange={setSelectedBorough}>
-                <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {berlinBoroughs.map((borough) => (
-                    <SelectItem key={borough} value={borough}>
-                      {borough}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+      <Card className="bg-white/10 backdrop-blur-md border-white/20 text-white">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-xl">Forum</CardTitle>
+              <CardDescription className="text-blue-200">
+                Diskutiere mit deinem Kiez
+              </CardDescription>
             </div>
-
-            {/* Category Filter */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-white">Kategorie</label>
+            <Button className="bg-blue-600 hover:bg-blue-700">
+              <Plus className="h-4 w-4 mr-2" />
+              Neuer Beitrag
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label className="text-sm text-blue-300 mb-2 block">Kategorie</label>
               <Select value={selectedCategory} onValueChange={setSelectedCategory}>
                 <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                  <SelectValue />
+                  <SelectValue placeholder="Kategorie wählen" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Alle Kategorien</SelectItem>
+                <SelectContent className="bg-slate-800 border-slate-600">
+                  <SelectItem value="all" className="text-white hover:bg-slate-700">Alle Kategorien</SelectItem>
                   {categories.map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
+                    <SelectItem key={category.id} value={category.id} className="text-white hover:bg-slate-700">
                       {category.name}
                     </SelectItem>
                   ))}
@@ -197,108 +181,112 @@ export const EnhancedForumList = ({ userProfile }: EnhancedForumListProps) => {
               </Select>
             </div>
 
-            {/* Post Type Filter */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-white">Typ</label>
+            <div>
+              <label className="text-sm text-blue-300 mb-2 block">Typ</label>
               <Select value={selectedPostType} onValueChange={setSelectedPostType}>
                 <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                  <SelectValue />
+                  <SelectValue placeholder="Typ wählen" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Alle Typen</SelectItem>
-                  <SelectItem value="offering">Biete</SelectItem>
-                  <SelectItem value="searching">Suche</SelectItem>
-                  <SelectItem value="discussion">Diskussion</SelectItem>
+                <SelectContent className="bg-slate-800 border-slate-600">
+                  <SelectItem value="all" className="text-white hover:bg-slate-700">Alle Typen</SelectItem>
+                  {postTypes.map((type) => (
+                    <SelectItem key={type.value} value={type.value} className="text-white hover:bg-slate-700">
+                      {type.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
-            {/* Quick Filter Buttons */}
-            <div className="flex flex-wrap gap-2 items-end">
-              <Button
-                onClick={() => setSelectedBorough(userProfile.borough || 'Alle Bezirke')}
-                variant="outline"
-                size="sm"
-                className="border-white/20 text-blue-200 hover:text-white hover:bg-white/10"
-              >
-                <Filter className="h-3 w-3 mr-1" />
-                Mein Kiez
-              </Button>
+            <div>
+              <label className="text-sm text-blue-300 mb-2 block">Bezirk</label>
+              <Select value={selectedBorough} onValueChange={setSelectedBorough}>
+                <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                  <SelectValue placeholder="Bezirk wählen" />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-800 border-slate-600">
+                  <SelectItem value="all" className="text-white hover:bg-slate-700">Alle Bezirke</SelectItem>
+                  {berlinBoroughs.map((borough) => (
+                    <SelectItem key={borough} value={borough} className="text-white hover:bg-slate-700">
+                      {borough}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-sm text-blue-300 mb-2 block">Suchen</label>
+              <Input
+                placeholder="Beiträge durchsuchen..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
+              />
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Posts List */}
       <div className="space-y-4">
         {loading ? (
-          <div className="text-center text-blue-200 py-8">Lädt Beiträge...</div>
-        ) : posts.length === 0 ? (
-          <Card className="bg-white/10 backdrop-blur-md border-white/20 text-white">
-            <CardContent className="p-8 text-center">
-              <p className="text-blue-200">Keine Beiträge in diesem Filter gefunden.</p>
-              <Button className="mt-4 bg-green-600 hover:bg-green-700">
-                Ersten Beitrag erstellen
-              </Button>
-            </CardContent>
-          </Card>
+          <div className="text-center text-blue-300 py-8">Lädt...</div>
+        ) : filteredPosts.length === 0 ? (
+          <div className="text-center text-blue-300 py-8">Keine Beiträge gefunden</div>
         ) : (
-          posts.map((post) => (
-            <Card
-              key={post.id}
-              className="bg-white/10 backdrop-blur-md border-white/20 text-white hover:bg-white/15 transition-colors cursor-pointer"
-            >
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 space-y-2">
-                    <div className="flex items-center space-x-2 flex-wrap">
-                      <Badge className={`${getPostTypeColor(post.post_type)} text-white text-xs`}>
-                        {getPostTypeLabel(post.post_type)}
+          filteredPosts.map((post) => {
+            const postTypeInfo = getPostTypeInfo(post.post_type);
+            return (
+              <Card key={post.id} className="bg-white/10 backdrop-blur-md border-white/20 text-white hover:bg-white/15 transition-colors cursor-pointer">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center space-x-3">
+                      <Badge className={`${postTypeInfo.color} text-white`}>
+                        {postTypeInfo.label}
                       </Badge>
                       {post.forum_categories && (
-                        <Badge 
-                          style={{ backgroundColor: post.forum_categories.color }}
-                          className="text-white text-xs"
-                        >
+                        <Badge variant="outline" className="border-blue-400 text-blue-300">
                           {post.forum_categories.name}
                         </Badge>
                       )}
-                      <h3 className="font-semibold hover:text-blue-300 transition-colors flex-1">
-                        {post.title}
-                      </h3>
-                    </div>
-                    
-                    <p className="text-sm text-blue-100 line-clamp-2">{post.content}</p>
-                    
-                    <div className="flex items-center space-x-4 text-sm text-blue-200">
-                      <span>von {post.profiles?.nickname}</span>
                       {post.borough && (
-                        <div className="flex items-center space-x-1">
-                          <MapPin className="h-3 w-3" />
-                          <span>{post.borough}</span>
-                        </div>
+                        <Badge variant="outline" className="border-green-400 text-green-300">
+                          📍 {post.borough}
+                        </Badge>
                       )}
-                      <span>{formatTimeAgo(post.created_at)}</span>
                     </div>
-                    
-                    <div className="flex items-center space-x-4 text-sm">
-                      <div className="flex items-center space-x-1 text-blue-300">
-                        <MessageCircle className="h-4 w-4" />
-                        <span>{post.replies_count} Antworten</span>
+                    <span className="text-xs text-blue-300">{formatTimeAgo(post.created_at)}</span>
+                  </div>
+                  
+                  <h3 className="font-semibold text-lg mb-2 text-white">{post.title}</h3>
+                  <p className="text-blue-200 text-sm mb-3 line-clamp-2">{post.content}</p>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4 text-xs text-blue-300">
+                      <span>von {post.profiles?.nickname || 'Anonym'}</span>
+                      {post.profiles?.borough && (
+                        <span>aus {post.profiles.borough}</span>
+                      )}
+                    </div>
+                    <div className="flex items-center space-x-4 text-xs text-blue-300">
+                      <div className="flex items-center space-x-1">
+                        <Eye className="h-3 w-3" />
+                        <span>{post.views_count}</span>
                       </div>
-                      <div className="flex items-center space-x-1 text-green-300">
-                        <ThumbsUp className="h-4 w-4" />
+                      <div className="flex items-center space-x-1">
+                        <Heart className="h-3 w-3" />
                         <span>{post.likes_count}</span>
                       </div>
-                      <div className="text-blue-300">
-                        {post.views_count} Aufrufe
+                      <div className="flex items-center space-x-1">
+                        <MessageSquare className="h-3 w-3" />
+                        <span>{post.replies_count}</span>
                       </div>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))
+                </CardContent>
+              </Card>
+            );
+          })
         )}
       </div>
     </div>
