@@ -37,6 +37,31 @@ export const useAuth = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const ensureProfile = async (
+    supabaseUser: User,
+    meta: { nickname?: string; user_role?: 'seller' | 'buyer'; borough?: string } = {}
+  ) => {
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', supabaseUser.id)
+        .single();
+
+      if (!data) {
+        await supabase.from('profiles').insert({
+          id: supabaseUser.id,
+          email: supabaseUser.email,
+          nickname: meta.nickname ?? null,
+          user_role: meta.user_role ?? 'buyer',
+          borough: meta.borough ?? null,
+        });
+      }
+    } catch (err) {
+      console.error('ensureProfile error:', err);
+    }
+  };
+
   useEffect(() => {
     // Set up auth state listener FIRST
     const {
@@ -47,7 +72,7 @@ export const useAuth = () => {
       if (session?.user) {
         // Defer profile fetching to prevent deadlocks
         setTimeout(() => {
-          fetchProfile(session.user.id);
+          fetchProfile(session.user.id, session.user);
         }, 0);
       } else {
         setProfile(null);
@@ -59,7 +84,7 @@ export const useAuth = () => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchProfile(session.user.id);
+        fetchProfile(session.user.id, session.user);
       } else {
         setLoading(false);
       }
@@ -68,12 +93,12 @@ export const useAuth = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async (userId: string, supabaseUser?: User) => {
     try {
       console.log('Fetching profile for user:', userId);
-      
+
       // First get the user profile
-      const { data: profileData, error: profileError } = await supabase
+      let { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
@@ -82,6 +107,20 @@ export const useAuth = () => {
       if (profileError) {
         console.error('Profile fetch error:', profileError);
         throw profileError;
+      }
+
+      if (!profileData && supabaseUser) {
+        await ensureProfile(supabaseUser, {
+          nickname: supabaseUser.user_metadata?.nickname,
+          user_role: supabaseUser.user_metadata?.user_role,
+          borough: supabaseUser.user_metadata?.borough,
+        });
+        const { data } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
+        profileData = data as any;
       }
 
       // Check if user is super admin
@@ -134,6 +173,9 @@ export const useAuth = () => {
       });
 
       console.log('Sign up result:', data, error);
+      if (data.user && !error) {
+        await ensureProfile(data.user, userData);
+      }
       return { data, error };
     } catch (error) {
       console.error('Sign up error:', error);
@@ -159,8 +201,9 @@ export const useAuth = () => {
       });
 
       console.log('Sign in result:', data, error);
-      
+
       if (data.user && !error) {
+        await ensureProfile(data.user);
         // Force page reload for clean state
         setTimeout(() => {
           window.location.href = '/';
