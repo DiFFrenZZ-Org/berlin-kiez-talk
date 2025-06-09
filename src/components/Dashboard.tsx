@@ -1,10 +1,20 @@
 
 import { useState } from "react";
 
-import { MessageSquare, Users, MapPin, Settings, Star, CreditCard, LogOut, Check } from "lucide-react";
-
-
-import { MessageSquare, Users, MapPin, Settings, Star, CreditCard, LogOut, Megaphone, Calendar, Sun, Moon, Check } from "lucide-react";
+import {
+  MessageSquare,
+  Users,
+  MapPin,
+  Settings,
+  Star,
+  CreditCard,
+  LogOut,
+  Megaphone,
+  Calendar,
+  Sun,
+  Moon,
+  Check,
+} from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,8 +24,7 @@ import { EnhancedForumList } from "@/components/EnhancedForumList";
 import { EnhancedSellerProfiles } from "@/components/EnhancedSellerProfiles";
 import { AnnouncementsFeed } from "@/components/AnnouncementsFeed";
 import { EventsCalendar } from "@/components/EventsCalendar";
-import { UserProfile } from "@/hooks/useAuth";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth, UserProfile } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
 interface DashboardProps {
