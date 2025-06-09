@@ -4,7 +4,6 @@ import { Send, Plus, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -48,7 +47,8 @@ export const ChatInterface = ({ userProfile }: ChatInterfaceProps) => {
 
   useEffect(() => {
     if (activeChat) {
-      fetchMessages(activeChat);
+      // Since chat_messages table doesn't exist yet, show placeholder
+      setMessages([]);
     } else {
       setMessages([]);
     }
@@ -63,29 +63,13 @@ export const ChatInterface = ({ userProfile }: ChatInterfaceProps) => {
     setChats(data || []);
   };
 
-  const fetchMessages = async (roomId: string) => {
-    const { data } = await supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('room_id', roomId)
-      .order('created_at');
-
-    setMessages(data || []);
-  };
-
   const sendMessage = async () => {
     if (!message.trim() || !activeChat) return;
 
-    const { data, error } = await supabase.from('chat_messages').insert({
-      room_id: activeChat,
-      sender_id: userProfile.id,
-      content: message,
-    }).select().single();
-
-    if (!error && data) {
-      setMessages(prev => [...prev, data]);
-      setMessage('');
-    }
+    // Since chat_messages table doesn't exist yet, just clear the message
+    // Future implementation will insert into chat_messages table
+    setMessage('');
+    console.log('Message would be sent:', message, 'to room:', activeChat);
   };
 
   const createRoom = async () => {
@@ -136,34 +120,41 @@ export const ChatInterface = ({ userProfile }: ChatInterfaceProps) => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          {chats.map((chat) => (
-            <div
-              key={chat.id}
-              onClick={() => setActiveChat(chat.id)}
-              className={`p-3 rounded-lg cursor-pointer transition-colors ${
-                activeChat === chat.id 
-                  ? 'bg-blue-600/30 border border-blue-400/50' 
-                  : 'bg-white/5 hover:bg-white/10'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center space-x-2">
-                  <span className="font-medium text-sm">{chat.name}</span>
-                  <Shield className="h-3 w-3 text-green-400" />
-                </div>
-                <div className="flex items-center space-x-2">
-                  {chat.expires_at && (
-                    <span className="text-xs text-blue-300">
-                      {new Date(chat.expires_at).toLocaleDateString()}
-                    </span>
-                  )}
-                </div>
-              </div>
-              {chat.lastMessage && (
-                <p className="text-xs text-blue-200 truncate">{chat.lastMessage}</p>
-              )}
+          {chats.length === 0 ? (
+            <div className="text-center text-blue-300 py-8">
+              <p>Keine Chaträume verfügbar</p>
+              <p className="text-sm mt-2 opacity-70">Erstellen Sie einen neuen Raum</p>
             </div>
-          ))}
+          ) : (
+            chats.map((chat) => (
+              <div
+                key={chat.id}
+                onClick={() => setActiveChat(chat.id)}
+                className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                  activeChat === chat.id 
+                    ? 'bg-blue-600/30 border border-blue-400/50' 
+                    : 'bg-white/5 hover:bg-white/10'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center space-x-2">
+                    <span className="font-medium text-sm">{chat.name}</span>
+                    <Shield className="h-3 w-3 text-green-400" />
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    {chat.expires_at && (
+                      <span className="text-xs text-blue-300">
+                        {new Date(chat.expires_at).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {chat.lastMessage && (
+                  <p className="text-xs text-blue-200 truncate">{chat.lastMessage}</p>
+                )}
+              </div>
+            ))
+          )}
         </CardContent>
       </Card>
 
@@ -189,26 +180,35 @@ export const ChatInterface = ({ userProfile }: ChatInterfaceProps) => {
             <>
               {/* Messages */}
               <div className="flex-1 space-y-3 mb-4 overflow-y-auto">
-                {messages.map((msg) => {
-                  const isOwn = msg.sender_id === userProfile.id;
-                  return (
-                    <div
-                      key={msg.id}
-                      className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div
-                        className={`max-w-xs px-4 py-2 rounded-lg ${
-                          isOwn ? 'bg-blue-600 text-white' : 'bg-white/20 text-white'
-                        }`}
-                      >
-                        <p className="text-sm">{msg.content}</p>
-                        <p className="text-xs opacity-70 mt-1">
-                          {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </div>
+                {messages.length === 0 ? (
+                  <div className="flex-1 flex items-center justify-center text-blue-300">
+                    <div className="text-center">
+                      <p>Keine Nachrichten in diesem Raum</p>
+                      <p className="text-sm mt-2 opacity-70">Chat-Funktionalität wird bald verfügbar sein</p>
                     </div>
-                  );
-                })}
+                  </div>
+                ) : (
+                  messages.map((msg) => {
+                    const isOwn = msg.sender_id === userProfile.id;
+                    return (
+                      <div
+                        key={msg.id}
+                        className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <div
+                          className={`max-w-xs px-4 py-2 rounded-lg ${
+                            isOwn ? 'bg-blue-600 text-white' : 'bg-white/20 text-white'
+                          }`}
+                        >
+                          <p className="text-sm">{msg.content}</p>
+                          <p className="text-xs opacity-70 mt-1">
+                            {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
 
               {/* Message Input */}
@@ -232,6 +232,7 @@ export const ChatInterface = ({ userProfile }: ChatInterfaceProps) => {
           )}
         </CardContent>
       </Card>
+      
       <Dialog open={openCreate} onOpenChange={setOpenCreate}>
         <DialogContent className="bg-white/10 border-white/20 text-white">
           <DialogHeader>

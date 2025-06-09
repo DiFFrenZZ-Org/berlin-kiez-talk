@@ -1,7 +1,7 @@
+
 import { useState, useEffect } from "react";
 import { Megaphone } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
 
 interface Announcement {
   id: string;
@@ -18,31 +18,10 @@ export const AnnouncementsFeed = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchAnnouncements();
-  }, []);
-
-  const fetchAnnouncements = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("announcements")
-      .select("id,title,content,created_at,profiles(nickname)")
-      .eq("is_approved", true)
-      .order("created_at", { ascending: false });
-
-    if (!error) {
-      const enriched = (data || []).map((ann: any) => ({
-        id: ann.id,
-        title: ann.title,
-        content: ann.content,
-        created_at: ann.created_at,
-        profile: ann.profiles ? { nickname: ann.profiles.nickname } : null,
-      }));
-      setAnnouncements(enriched);
-    } else {
-      console.error("Error loading announcements", error);
-    }
+    // Since announcements table doesn't exist yet, show placeholder data
     setLoading(false);
-  };
+    // Future implementation will fetch from supabase when table is created
+  }, []);
 
   const formatTimeAgo = (dateString: string | null) => {
     if (!dateString) return "";
@@ -72,7 +51,10 @@ export const AnnouncementsFeed = () => {
           {loading ? (
             <div className="text-center text-blue-300 py-8">Lädt...</div>
           ) : announcements.length === 0 ? (
-            <div className="text-center text-blue-300 py-8">Keine Ankündigungen</div>
+            <div className="text-center text-blue-300 py-8">
+              <p>Keine Ankündigungen verfügbar</p>
+              <p className="text-sm mt-2 opacity-70">Diese Funktion wird bald verfügbar sein</p>
+            </div>
           ) : (
             announcements.map((ann) => (
               <Card key={ann.id} className="bg-white/5 text-white">

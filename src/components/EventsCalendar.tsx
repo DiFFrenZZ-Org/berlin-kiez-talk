@@ -1,8 +1,8 @@
+
 import { useState, useEffect } from "react";
 import { Calendar as CalendarIcon, MapPin } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
-import { supabase } from "@/integrations/supabase/client";
 
 interface EventItem {
   id: string;
@@ -18,27 +18,10 @@ export const EventsCalendar = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchEvents();
-  }, [selectedDate]);
-
-  const fetchEvents = async () => {
-    setLoading(true);
-    let query = supabase.from("events").select("*").order("event_date");
-    if (selectedDate) {
-      const start = new Date(selectedDate);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(selectedDate);
-      end.setHours(23, 59, 59, 999);
-      query = query.gte("event_date", start.toISOString()).lte("event_date", end.toISOString());
-    }
-    const { data, error } = await query;
-    if (!error) {
-      setEvents(data || []);
-    } else {
-      console.error("Error loading events", error);
-    }
+    // Since events table doesn't exist yet, show placeholder
     setLoading(false);
-  };
+    // Future implementation will fetch from supabase when table is created
+  }, [selectedDate]);
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "";
@@ -60,7 +43,10 @@ export const EventsCalendar = () => {
           {loading ? (
             <div className="text-center text-blue-300 py-8">Lädt...</div>
           ) : events.length === 0 ? (
-            <div className="text-center text-blue-300 py-8">Keine Events gefunden</div>
+            <div className="text-center text-blue-300 py-8">
+              <p>Keine Events verfügbar</p>
+              <p className="text-sm mt-2 opacity-70">Diese Funktion wird bald verfügbar sein</p>
+            </div>
           ) : (
             events.map((ev) => (
               <Card key={ev.id} className="bg-white/5 text-white">
