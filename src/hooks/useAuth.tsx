@@ -13,7 +13,24 @@ export interface UserProfile {
   subscription_active: boolean | null;
   verified_local: boolean | null;
   reputation_score: number | null;
+  is_super_admin?: boolean;
 }
+
+// Auth state cleanup utility
+const cleanupAuthState = () => {
+  // Remove all Supabase auth keys from localStorage
+  Object.keys(localStorage).forEach((key) => {
+    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+      localStorage.removeItem(key);
+    }
+  });
+  // Remove from sessionStorage if in use
+  Object.keys(sessionStorage || {}).forEach((key) => {
+    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+      sessionStorage.removeItem(key);
+    }
+  });
+};
 
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -21,7 +38,24 @@ export const useAuth = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
+    // Set up auth state listener FIRST
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session?.user?.id);
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        // Defer profile fetching to prevent deadlocks
+        setTimeout(() => {
+          fetchProfile(session.user.id);
+        }, 0);
+      } else {
+        setProfile(null);
+        setLoading(false);
+      }
+    });
+
+    // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
@@ -31,34 +65,40 @@ export const useAuth = () => {
       }
     });
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await fetchProfile(session.user.id);
-      } else {
-        setProfile(null);
-        setLoading(false);
-      }
-    });
-
     return () => subscription.unsubscribe();
   }, []);
 
   const fetchProfile = async (userId: string) => {
     try {
-      const { data, error } = await supabase
+      console.log('Fetching profile for user:', userId);
+      
+      // First get the user profile
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select(
-          'id,email,nickname,user_role,borough,subscription_tier,subscription_active,verified_local,reputation_score'
-        )
+        .select('*')
         .eq('id', userId)
         .single();
 
-      if (error) throw error;
-      setProfile(data);
+      if (profileError) {
+        console.error('Profile fetch error:', profileError);
+        throw profileError;
+      }
+
+      // Check if user is super admin
+      const { data: isSuperAdmin, error: superAdminError } = await supabase
+        .rpc('is_super_admin', { user_id: userId });
+
+      if (superAdminError) {
+        console.error('Super admin check error:', superAdminError);
+      }
+
+      const enrichedProfile: UserProfile = {
+        ...profileData,
+        is_super_admin: isSuperAdmin || false
+      };
+
+      console.log('Profile fetched successfully:', enrichedProfile);
+      setProfile(enrichedProfile);
     } catch (error) {
       console.error('Error fetching profile:', error);
     } finally {
@@ -71,27 +111,85 @@ export const useAuth = () => {
     user_role: 'seller' | 'buyer';
     borough?: string;
   }) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: userData
+    try {
+      // Clean up existing state
+      cleanupAuthState();
+      
+      // Attempt global sign out
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (err) {
+        console.log('Sign out during signup failed (expected):', err);
       }
-    });
-    return { data, error };
+
+      const redirectUrl = `${window.location.origin}/`;
+      
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: userData
+        }
+      });
+
+      console.log('Sign up result:', data, error);
+      return { data, error };
+    } catch (error) {
+      console.error('Sign up error:', error);
+      return { data: null, error };
+    }
   };
 
   const signIn = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-    return { data, error };
+    try {
+      // Clean up existing state
+      cleanupAuthState();
+      
+      // Attempt global sign out
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (err) {
+        console.log('Sign out during signin failed (expected):', err);
+      }
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      console.log('Sign in result:', data, error);
+      
+      if (data.user && !error) {
+        // Force page reload for clean state
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 100);
+      }
+
+      return { data, error };
+    } catch (error) {
+      console.error('Sign in error:', error);
+      return { data: null, error };
+    }
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    return { error };
+    try {
+      // Clean up auth state
+      cleanupAuthState();
+      
+      // Attempt global sign out
+      const { error } = await supabase.auth.signOut({ scope: 'global' });
+      
+      // Force page reload for clean state
+      window.location.href = '/';
+      
+      return { error };
+    } catch (error) {
+      console.error('Sign out error:', error);
+      return { error };
+    }
   };
 
   return {

@@ -324,85 +324,39 @@ export type Database = {
           },
         ]
       }
-      announcements: {
+      super_admins: {
         Row: {
+          created_at: string
+          created_by: string | null
           id: string
-          title: string
-          content: string
-          created_at: string | null
-          user_id: string | null
-          is_approved: boolean | null
+          is_active: boolean
+          user_id: string
         }
         Insert: {
+          created_at?: string
+          created_by?: string | null
           id?: string
-          title: string
-          content: string
-          created_at?: string | null
-          user_id?: string | null
-          is_approved?: boolean | null
+          is_active?: boolean
+          user_id: string
         }
         Update: {
+          created_at?: string
+          created_by?: string | null
           id?: string
-          title?: string
-          content?: string
-          created_at?: string | null
-          user_id?: string | null
-          is_approved?: boolean | null
+          is_active?: boolean
+          user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "announcements_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      events: {
-        Row: {
-          id: string
-          title: string
-          description: string
-          event_date: string | null
-          location: string | null
-          created_at: string | null
-          user_id: string | null
-        }
-        Insert: {
-          id?: string
-          title: string
-          description: string
-          event_date?: string | null
-          location?: string | null
-          created_at?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          id?: string
-          title?: string
-          description?: string
-          event_date?: string | null
-          location?: string | null
-          created_at?: string | null
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "events_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_super_admin: {
+        Args: { user_id?: string }
+        Returns: boolean
+      }
     }
     Enums: {
       post_type: "offering" | "searching" | "discussion"

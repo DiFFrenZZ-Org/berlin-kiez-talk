@@ -7,13 +7,14 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 
 const Index = () => {
-  const [isInBerlin, setIsInBerlin] = useState<boolean | null>(null);
+  const [isLocationVerified, setIsLocationVerified] = useState<boolean | null>(null);
   const { user, profile, loading } = useAuth();
   const { toast } = useToast();
 
-  const handleLocationVerified = (inBerlin: boolean) => {
-    setIsInBerlin(inBerlin);
-    if (!inBerlin) {
+  const handleLocationVerified = (hasAccess: boolean) => {
+    console.log('Location verification result:', hasAccess);
+    setIsLocationVerified(hasAccess);
+    if (!hasAccess) {
       toast({
         title: "Zugang beschränkt",
         description: "Diese App ist nur für Nutzer in Berlin verfügbar.",
@@ -31,13 +32,18 @@ const Index = () => {
     );
   }
 
-  // Show location check first
-  if (isInBerlin === null) {
+  // For super admins, skip location check if authenticated
+  if (user && profile?.is_super_admin && isLocationVerified === null) {
+    setIsLocationVerified(true);
+  }
+
+  // Show location check first (unless super admin)
+  if (isLocationVerified === null) {
     return <LocationCheck onLocationVerified={handleLocationVerified} />;
   }
 
-  // Show access denied if not in Berlin
-  if (!isInBerlin) {
+  // Show access denied if not in Berlin and not super admin
+  if (!isLocationVerified) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 flex items-center justify-center p-4">
         <div className="text-center text-white space-y-4">
