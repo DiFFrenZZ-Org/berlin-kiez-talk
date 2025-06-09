@@ -1,12 +1,19 @@
 
 import { useState } from "react";
+
 import { MessageSquare, Users, MapPin, Settings, Star, CreditCard, LogOut, Check } from "lucide-react";
+
+
+import { MessageSquare, Users, MapPin, Settings, Star, CreditCard, LogOut, Megaphone, Calendar, Sun, Moon, Check } from "lucide-react";
+import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChatInterface } from "@/components/ChatInterface";
 import { EnhancedForumList } from "@/components/EnhancedForumList";
 import { EnhancedSellerProfiles } from "@/components/EnhancedSellerProfiles";
+import { AnnouncementsFeed } from "@/components/AnnouncementsFeed";
+import { EventsCalendar } from "@/components/EventsCalendar";
 import { UserProfile } from "@/hooks/useAuth";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -16,7 +23,9 @@ interface DashboardProps {
 }
 
 export const Dashboard = ({ userProfile }: DashboardProps) => {
-  const [activeTab, setActiveTab] = useState<'forum' | 'chat' | 'sellers' | 'profile'>('forum');
+  const [activeTab, setActiveTab] = useState<'forum' | 'chat' | 'sellers' | 'announcements' | 'events' | 'profile'>('forum');
+
+  const { theme, setTheme } = useTheme();
   const { signOut } = useAuth();
   const { toast } = useToast();
 
@@ -40,6 +49,8 @@ export const Dashboard = ({ userProfile }: DashboardProps) => {
     { id: 'forum', label: 'Forum', icon: Users },
     { id: 'chat', label: 'Chats', icon: MessageSquare },
     { id: 'sellers', label: 'Verkäufer', icon: Star },
+    { id: 'announcements', label: 'News', icon: Megaphone },
+    { id: 'events', label: 'Events', icon: Calendar },
     { id: 'profile', label: 'Profil', icon: Settings },
   ];
 
@@ -85,6 +96,18 @@ export const Dashboard = ({ userProfile }: DashboardProps) => {
               </Badge>
             )}
             <Button
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              variant="ghost"
+              size="sm"
+              className="text-blue-300 hover:text-white"
+            >
+              {theme === "dark" ? (
+                <Sun className="h-4 w-4" />
+              ) : (
+                <Moon className="h-4 w-4" />
+              )}
+            </Button>
+            <Button
               onClick={handleSignOut}
               variant="ghost"
               size="sm"
@@ -124,6 +147,8 @@ export const Dashboard = ({ userProfile }: DashboardProps) => {
           {activeTab === 'forum' && <EnhancedForumList userProfile={userProfile} />}
           {activeTab === 'chat' && <ChatInterface userProfile={userProfile} />}
           {activeTab === 'sellers' && <EnhancedSellerProfiles userProfile={userProfile} />}
+          {activeTab === 'announcements' && <AnnouncementsFeed />}
+          {activeTab === 'events' && <EventsCalendar />}
           {activeTab === 'profile' && (
             <Card className="bg-white/10 backdrop-blur-md border-white/20 text-white">
               <CardHeader>
