@@ -102,7 +102,7 @@ export const useAuth = () => {
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
       if (profileError) {
         console.error('Profile fetch error:', profileError);
@@ -115,11 +115,13 @@ export const useAuth = () => {
           user_role: supabaseUser.user_metadata?.user_role,
           borough: supabaseUser.user_metadata?.borough,
         });
+
         const { data } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', userId)
           .single();
+
         profileData = data as any;
       }
 
