@@ -11,6 +11,12 @@ const Index = () => {
   const { user, profile, loading } = useAuth();
   const { toast } = useToast();
 
+  useEffect(() => {
+    if (user && profile?.is_super_admin && isLocationVerified === null) {
+      setIsLocationVerified(true);
+    }
+  }, [user, profile, isLocationVerified]);
+
   const handleLocationVerified = (hasAccess: boolean) => {
     console.log('Location verification result:', hasAccess);
     setIsLocationVerified(hasAccess);
@@ -30,11 +36,6 @@ const Index = () => {
         <div className="text-white">Lädt...</div>
       </div>
     );
-  }
-
-  // For super admins, skip location check if authenticated
-  if (user && profile?.is_super_admin && isLocationVerified === null) {
-    setIsLocationVerified(true);
   }
 
   // Show location check first (unless super admin)
