@@ -1,9 +1,11 @@
 
 import { useState } from "react";
 
-import { MessageSquare, Users, MapPin, Settings, Star, CreditCard, LogOut, Megaphone, Calendar, Sun, Moon } from "lucide-react";
-import { useTheme } from "next-themes";
+import { MessageSquare, Users, MapPin, Settings, Star, CreditCard, LogOut, Check } from "lucide-react";
 
+
+import { MessageSquare, Users, MapPin, Settings, Star, CreditCard, LogOut, Megaphone, Calendar, Sun, Moon, Check } from "lucide-react";
+import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -65,7 +67,16 @@ export const Dashboard = ({ userProfile }: DashboardProps) => {
           </div>
           <div className="flex items-center space-x-3">
             <div className="text-right text-sm">
-              <div className="text-white font-medium">{userProfile.nickname}</div>
+              <div className="text-white font-medium flex items-center space-x-1">
+                <span>{userProfile.nickname}</span>
+                {userProfile.verified_local && (
+                  <Check className="h-4 w-4 text-green-400" />
+                )}
+                <span className="flex items-center text-yellow-300 ml-1">
+                  <Star className="h-3 w-3 mr-0.5 fill-current" />
+                  {userProfile.reputation_score}
+                </span>
+              </div>
               <div className="text-blue-300 text-xs">{userProfile.borough}</div>
             </div>
             <Badge variant={userProfile.user_role === 'seller' ? 'default' : 'secondary'} className="bg-blue-600">

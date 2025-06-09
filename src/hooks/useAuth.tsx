@@ -9,10 +9,10 @@ export interface UserProfile {
   nickname: string | null;
   user_role: 'seller' | 'buyer';
   borough: string | null;
-  subscription_tier: 'basic' | 'pro' | 'premium';
-  subscription_active: boolean;
-  verified_local: boolean;
-  reputation_score: number;
+  subscription_tier: 'basic' | 'pro' | 'premium' | null;
+  subscription_active: boolean | null;
+  verified_local: boolean | null;
+  reputation_score: number | null;
 }
 
 export const useAuth = () => {
@@ -51,7 +51,9 @@ export const useAuth = () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select(
+          'id,email,nickname,user_role,borough,subscription_tier,subscription_active,verified_local,reputation_score'
+        )
         .eq('id', userId)
         .single();
 
