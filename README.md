@@ -29,11 +29,9 @@ git clone <YOUR_GIT_URL>
 # Step 2: Navigate to the project directory.
 cd <YOUR_PROJECT_NAME>
 
-# Step 3: Create a `.env` file with your Supabase credentials.
-cat <<EOF > .env
-VITE_SUPABASE_URL=<YOUR_SUPABASE_URL>
-VITE_SUPABASE_ANON_KEY=<YOUR_SUPABASE_ANON_KEY>
-EOF
+# Step 3: Copy `.env.example` to `.env` and fill in your Supabase credentials.
+cp .env.example .env
+# Edit `.env` and set values for `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
 
 # Step 4: Install the necessary dependencies.
 npm i
