@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UserProfile } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { NewPostDialog } from "./NewPostDialog";
 
 interface ForumPost {
   id: string;
@@ -47,6 +48,7 @@ export const EnhancedForumList = ({ userProfile }: EnhancedForumListProps) => {
   const [posts, setPosts] = useState<ForumPost[]>([]);
   const [categories, setCategories] = useState<ForumCategory[]>([]);
   const [loading, setLoading] = useState(true);
+  const [openNew, setOpenNew] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedPostType, setSelectedPostType] = useState<string>('all');
   const [selectedBorough, setSelectedBorough] = useState<string>(userProfile.borough || 'all');
@@ -193,7 +195,7 @@ export const EnhancedForumList = ({ userProfile }: EnhancedForumListProps) => {
                 Diskutiere mit deinem Kiez
               </CardDescription>
             </div>
-            <Button className="bg-blue-600 hover:bg-blue-700">
+            <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => setOpenNew(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Neuer Beitrag
             </Button>
@@ -326,6 +328,13 @@ export const EnhancedForumList = ({ userProfile }: EnhancedForumListProps) => {
           })
         )}
       </div>
+      <NewPostDialog
+        open={openNew}
+        onOpenChange={setOpenNew}
+        categories={categories}
+        userProfile={userProfile}
+        onCreated={fetchPosts}
+      />
     </div>
   );
 };

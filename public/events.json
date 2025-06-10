@@ -1,0 +1,9 @@
+[
+  {
+    "id": "1",
+    "title": "Placeholder Event",
+    "description": "Sample event data. Run 'npm run scrape-events' to fetch real events.",
+    "event_date": "2025-07-01",
+    "location": "Berlin"
+  }
+]
