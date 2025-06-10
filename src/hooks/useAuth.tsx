@@ -39,7 +39,7 @@ export const useAuth = () => {
 
   const ensureProfile = async (
     supabaseUser: User,
-    meta: { nickname?: string; user_role?: 'seller' | 'buyer'; borough?: string } = {}
+    meta: { nickname?: string; user_role?: 'seller' | 'buyer' | 'super_admin'; borough?: string } = {}
   ) => {
     try {
       const { data } = await supabase
@@ -49,12 +49,15 @@ export const useAuth = () => {
         .single();
 
       if (!data) {
+        // Check if this user should be a super admin
+        const isAdmin = supabaseUser.email === 'turquinjl@gmail.com';
+        
         await supabase.from('profiles').insert({
           id: supabaseUser.id,
           email: supabaseUser.email,
-          nickname: meta.nickname ?? null,
-          user_role: meta.user_role ?? 'buyer',
-          borough: meta.borough ?? null,
+          nickname: meta.nickname ?? (isAdmin ? 'SuperAdmin' : null),
+          user_role: isAdmin ? 'super_admin' : (meta.user_role ?? 'buyer'),
+          borough: meta.borough ?? (isAdmin ? 'Berlin' : null),
         });
       }
     } catch (err) {

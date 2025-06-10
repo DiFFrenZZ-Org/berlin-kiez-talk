@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 
 import {
@@ -14,6 +13,7 @@ import {
   Sun,
   Moon,
   Check,
+  Crown,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -23,9 +23,8 @@ import { ChatInterface } from "@/components/ChatInterface";
 import { EnhancedForumList } from "@/components/EnhancedForumList";
 import { EnhancedSellerProfiles } from "@/components/EnhancedSellerProfiles";
 import { AnnouncementsFeed } from "@/components/AnnouncementsFeed";
-import { EventsCalendar } from "@/components/EventsCalendar";
-import { SellerDashboard } from "@/components/SellerDashboard";
-import { BuyerDashboard } from "@/components/BuyerDashboard";
+import { EnhancedEventsCalendar } from "@/components/EnhancedEventsCalendar";
+import { SuperAdminDashboard } from "@/components/SuperAdminDashboard";
 import { useAuth, UserProfile } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
@@ -65,6 +64,16 @@ export const Dashboard = ({ userProfile }: DashboardProps) => {
     { id: 'profile', label: 'Profil', icon: Settings },
   ];
 
+  const getRoleDisplay = () => {
+    if (userProfile.user_role === 'super_admin') return 'Super Admin';
+    return userProfile.user_role === 'seller' ? 'Verkäufer' : 'Käufer';
+  };
+
+  const getRoleBadgeClass = () => {
+    if (userProfile.user_role === 'super_admin') return 'bg-gradient-to-r from-purple-600 to-pink-600 text-white';
+    return userProfile.user_role === 'seller' ? 'bg-blue-600' : 'bg-gray-600';
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800">
       {/* Header */}
@@ -79,6 +88,9 @@ export const Dashboard = ({ userProfile }: DashboardProps) => {
           <div className="flex items-center space-x-3">
             <div className="text-right text-sm">
               <div className="text-white font-medium flex items-center space-x-1">
+                {userProfile.user_role === 'super_admin' && (
+                  <Crown className="h-4 w-4 text-yellow-400" />
+                )}
                 <span>{userProfile.nickname}</span>
                 {userProfile.verified_local && (
                   <Check className="h-4 w-4 text-green-400" />
@@ -90,8 +102,8 @@ export const Dashboard = ({ userProfile }: DashboardProps) => {
               </div>
               <div className="text-blue-300 text-xs">{userProfile.borough}</div>
             </div>
-            <Badge variant={userProfile.user_role === 'seller' ? 'default' : 'secondary'} className="bg-blue-600">
-              {userProfile.user_role === 'seller' ? 'Verkäufer' : 'Käufer'}
+            <Badge variant="default" className={getRoleBadgeClass()}>
+              {getRoleDisplay()}
             </Badge>
             {userProfile.user_role === 'seller' && (
               <Badge 
@@ -159,9 +171,11 @@ export const Dashboard = ({ userProfile }: DashboardProps) => {
           {activeTab === 'chat' && <ChatInterface userProfile={userProfile} />}
           {activeTab === 'sellers' && <EnhancedSellerProfiles userProfile={userProfile} />}
           {activeTab === 'announcements' && <AnnouncementsFeed />}
-          {activeTab === 'events' && <EventsCalendar />}
+          {activeTab === 'events' && <EnhancedEventsCalendar />}
           {activeTab === 'profile' && (
-            userProfile.user_role === 'seller' ? (
+            userProfile.user_role === 'super_admin' ? (
+              <SuperAdminDashboard userProfile={userProfile} />
+            ) : userProfile.user_role === 'seller' ? (
               <SellerDashboard userProfile={userProfile} />
             ) : (
               <BuyerDashboard userProfile={userProfile} />
