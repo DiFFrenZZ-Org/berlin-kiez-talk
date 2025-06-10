@@ -18,9 +18,18 @@ export const EventsCalendar = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Since events table doesn't exist yet, show placeholder
-    setLoading(false);
-    // Future implementation will fetch from supabase when table is created
+    const loadEvents = async () => {
+      try {
+        const res = await fetch('/events.json');
+        const data = await res.json();
+        setEvents(data);
+      } catch (err) {
+        console.error('Failed to load events', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadEvents();
   }, [selectedDate]);
 
   const formatDate = (dateString: string | null) => {

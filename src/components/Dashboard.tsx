@@ -24,6 +24,8 @@ import { EnhancedForumList } from "@/components/EnhancedForumList";
 import { EnhancedSellerProfiles } from "@/components/EnhancedSellerProfiles";
 import { AnnouncementsFeed } from "@/components/AnnouncementsFeed";
 import { EventsCalendar } from "@/components/EventsCalendar";
+import { SellerDashboard } from "@/components/SellerDashboard";
+import { BuyerDashboard } from "@/components/BuyerDashboard";
 import { useAuth, UserProfile } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
@@ -159,56 +161,11 @@ export const Dashboard = ({ userProfile }: DashboardProps) => {
           {activeTab === 'announcements' && <AnnouncementsFeed />}
           {activeTab === 'events' && <EventsCalendar />}
           {activeTab === 'profile' && (
-            <Card className="bg-white/10 backdrop-blur-md border-white/20 text-white">
-              <CardHeader>
-                <CardTitle>Profil</CardTitle>
-                <CardDescription className="text-blue-200">
-                  Verwalten Sie Ihr Konto und Ihre Einstellungen
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="font-semibold mb-2">Benutzerinformationen</h3>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="text-blue-300">Nickname:</span>
-                        <span className="ml-2">{userProfile.nickname}</span>
-                      </div>
-                      <div>
-                        <span className="text-blue-300">Bezirk:</span>
-                        <span className="ml-2">{userProfile.borough}</span>
-                      </div>
-                      <div>
-                        <span className="text-blue-300">Rolle:</span>
-                        <span className="ml-2">{userProfile.user_role === 'seller' ? 'Verkäufer' : 'Käufer'}</span>
-                      </div>
-                      <div>
-                        <span className="text-blue-300">Reputation:</span>
-                        <span className="ml-2">{userProfile.reputation_score}</span>
-                      </div>
-                    </div>
-                  </div>
-                  {userProfile.user_role === 'seller' && (
-                    <div>
-                      <h3 className="font-semibold mb-2">Verkäufer-Status</h3>
-                      <div className="text-sm space-y-1">
-                        <div>
-                          <span className="text-blue-300">Abo-Tier:</span>
-                          <span className="ml-2 capitalize">{userProfile.subscription_tier}</span>
-                        </div>
-                        <div>
-                          <span className="text-blue-300">Status:</span>
-                          <span className={`ml-2 ${userProfile.subscription_active ? 'text-green-400' : 'text-red-400'}`}>
-                            {userProfile.subscription_active ? 'Aktiv' : 'Inaktiv'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            userProfile.user_role === 'seller' ? (
+              <SellerDashboard userProfile={userProfile} />
+            ) : (
+              <BuyerDashboard userProfile={userProfile} />
+            )
           )}
         </div>
       </div>
