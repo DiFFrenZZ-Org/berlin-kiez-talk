@@ -5,7 +5,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UserProfile } from "@/hooks/useAuth";
@@ -163,11 +163,13 @@ export const ChatInterface = ({ userProfile }: ChatInterfaceProps) => {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg">Chats</CardTitle>
-            <DialogTrigger asChild>
-              <Button size="sm" onClick={() => setOpenCreate(true)} className="bg-blue-600 hover:bg-blue-700">
-                <Plus className="h-4 w-4" />
-              </Button>
-            </DialogTrigger>
+            <Button
+              size="sm"
+              onClick={() => setOpenCreate(true)}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
           </div>
           <CardDescription className="text-blue-200">
             Ende-zu-Ende verschlüsselt
