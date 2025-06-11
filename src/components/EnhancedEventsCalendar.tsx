@@ -14,7 +14,7 @@ export const EnhancedEventsCalendar = () => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedArea, setSelectedArea] = useState<string>("");
+  const [selectedArea, setSelectedArea] = useState<string>("all_areas");
 
   const {
     events,
@@ -29,15 +29,16 @@ export const EnhancedEventsCalendar = () => {
 
   useEffect(() => {
     // Set default area from user profile
-    if (profile?.borough && !selectedArea) {
+    if (profile?.borough && selectedArea === "all_areas") {
       setSelectedArea(profile.borough);
     }
   }, [profile]);
 
   useEffect(() => {
+    const areaFilter = selectedArea === "all_areas" ? undefined : selectedArea;
     loadEvents({
       date: selectedDate?.toISOString().split('T')[0],
-      area: selectedArea || undefined
+      area: areaFilter
     });
   }, [selectedArea, selectedDate]);
 
@@ -51,6 +52,8 @@ export const EnhancedEventsCalendar = () => {
     setSelectedTags([]);
   };
 
+  const displayArea = selectedArea === "all_areas" ? "All Berlin areas" : selectedArea;
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Calendar and Filters */}
@@ -62,7 +65,7 @@ export const EnhancedEventsCalendar = () => {
               Events Calendar
             </CardTitle>
             <CardDescription className="text-blue-200">
-              {selectedArea && `Events in ${selectedArea}`}
+              Events in {displayArea}
               {selectedDate && ` - ${new Date(selectedDate).toLocaleDateString("de-DE", { 
                 day: "2-digit", 
                 month: "2-digit", 
