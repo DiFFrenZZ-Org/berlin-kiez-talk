@@ -11,9 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { UserProfile } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { sendChatMessage } from "@/services/sendChatMessage";
 
 interface ChatInterfaceProps {
   userProfile: UserProfile;
+  sendAnon?: boolean;
+  setSendAnon?: (v: boolean) => void;
 }
 
 interface ChatRoom {
@@ -34,7 +37,11 @@ interface ChatMessage {
   anonymous_name?: string | null;
 }
 
-export const ChatInterface = ({ userProfile }: ChatInterfaceProps) => {
+export const ChatInterface = ({
+  userProfile,
+  sendAnon: controlledSendAnon,
+  setSendAnon: controlledSetSendAnon,
+}: ChatInterfaceProps) => {
   const [message, setMessage] = useState('');
   const [activeChat, setActiveChat] = useState<string | null>(null);
   const [chats, setChats] = useState<ChatRoom[]>([]);
@@ -44,7 +51,9 @@ export const ChatInterface = ({ userProfile }: ChatInterfaceProps) => {
   const [newRoomDesc, setNewRoomDesc] = useState('');
   const [isTemporary, setIsTemporary] = useState(false);
   const [expiry, setExpiry] = useState<'24' | '48' | '72'>('24');
-  const [sendAnon, setSendAnon] = useState(false);
+  const [internalSendAnon, setInternalSendAnon] = useState(false);
+  const sendAnon = controlledSendAnon ?? internalSendAnon;
+  const setSendAnon = controlledSetSendAnon ?? setInternalSendAnon;
   const [channel, setChannel] = useState<RealtimeChannel | null>(null);
   const { toast } = useToast();
 
@@ -127,18 +136,11 @@ export const ChatInterface = ({ userProfile }: ChatInterfaceProps) => {
 
   const sendMessage = async () => {
     if (!message.trim() || !activeChat) return;
-    let anonymousName: string | null = null;
-    if (sendAnon) {
-      const { data } = await supabase.rpc('generate_anonymous_name');
-      anonymousName = data as string;
-    }
-
-    const { error } = await supabase.from('chat_messages').insert({
-      room_id: activeChat,
-      sender_id: userProfile.id,
+    const { error } = await sendChatMessage({
+      roomId: activeChat,
+      userId: userProfile.id,
       content: message,
-      is_anonymous: sendAnon,
-      anonymous_name: anonymousName,
+      isAnonymous: sendAnon,
     });
 
     if (!error) {
