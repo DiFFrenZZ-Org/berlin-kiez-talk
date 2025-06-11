@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
@@ -7,7 +6,7 @@ export interface UserProfile {
   id: string;
   email: string;
   nickname: string | null;
-  user_role: 'seller' | 'buyer';
+  user_role: 'seller' | 'buyer' | 'super_admin';
   borough: string | null;
   subscription_tier: 'basic' | 'pro' | 'premium' | null;
   subscription_active: boolean | null;

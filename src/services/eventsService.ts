@@ -1,4 +1,3 @@
-
 import { EventbriteService, StandardizedEvent } from './eventbrite';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -7,15 +6,14 @@ interface EventFilters {
   tags?: string[];
   search?: string;
   category?: string;
+  area?: string;
 }
 
 export class EventsService {
-  private eventbriteService: EventbriteService | null = null;
+  private eventbriteService: EventbriteService;
 
-  constructor(eventbriteApiKey?: string) {
-    if (eventbriteApiKey) {
-      this.eventbriteService = new EventbriteService(eventbriteApiKey);
-    }
+  constructor() {
+    this.eventbriteService = new EventbriteService();
   }
 
   async fetchAllEvents(filters?: EventFilters): Promise<StandardizedEvent[]> {
@@ -23,9 +21,9 @@ export class EventsService {
 
     // Fetch from different sources
     const sources = await Promise.allSettled([
-      this.fetchFromSupabase(),
-      this.fetchFromEventbrite(),
-      this.fetchFromLocalJSON()
+      this.fetchFromSupabase(filters),
+      this.fetchFromEventbrite(filters),
+      this.fetchFromLocalJSON(filters)
     ]);
 
     sources.forEach((result) => {
@@ -41,12 +39,19 @@ export class EventsService {
     return this.applyFilters(uniqueEvents, filters);
   }
 
-  private async fetchFromSupabase(): Promise<StandardizedEvent[]> {
+  private async fetchFromSupabase(filters?: EventFilters): Promise<StandardizedEvent[]> {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('berlin_events')
         .select('*')
         .order('event_date', { ascending: true });
+
+      // Apply date filter at database level for efficiency
+      if (filters?.date) {
+        query = query.eq('event_date', filters.date);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
@@ -68,20 +73,16 @@ export class EventsService {
     }
   }
 
-  private async fetchFromEventbrite(): Promise<StandardizedEvent[]> {
-    if (!this.eventbriteService) {
-      return [];
-    }
-
+  private async fetchFromEventbrite(filters?: EventFilters): Promise<StandardizedEvent[]> {
     try {
-      return await this.eventbriteService.fetchBerlinEvents();
+      return await this.eventbriteService.fetchBerlinEvents(filters?.area);
     } catch (error) {
       console.error('Failed to fetch from Eventbrite:', error);
       return [];
     }
   }
 
-  private async fetchFromLocalJSON(): Promise<StandardizedEvent[]> {
+  private async fetchFromLocalJSON(filters?: EventFilters): Promise<StandardizedEvent[]> {
     try {
       const response = await fetch('/events.json');
       const data = await response.json();
@@ -155,14 +156,29 @@ export class EventsService {
     });
   }
 
-  async getEventsByDate(date: string): Promise<StandardizedEvent[]> {
-    return this.fetchAllEvents({ date });
+  async getEventsByDate(date: string, area?: string): Promise<StandardizedEvent[]> {
+    return this.fetchAllEvents({ date, area });
   }
 
-  async getEventsByDateRange(startDate: string, endDate: string): Promise<StandardizedEvent[]> {
-    const allEvents = await this.fetchAllEvents();
+  async getEventsByDateRange(startDate: string, endDate: string, area?: string): Promise<StandardizedEvent[]> {
+    const allEvents = await this.fetchAllEvents({ area });
     return allEvents.filter(event => 
       event.event_date >= startDate && event.event_date <= endDate
     );
+  }
+
+  getBerlinAreas(): string[] {
+    return [
+      'Mitte',
+      'Kreuzberg', 
+      'Friedrichshain',
+      'Prenzlauer Berg',
+      'Neukölln',
+      'Charlottenburg',
+      'Schöneberg',
+      'Wedding',
+      'Tempelhof',
+      'Steglitz'
+    ];
   }
 }

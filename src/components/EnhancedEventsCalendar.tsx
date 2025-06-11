@@ -1,13 +1,15 @@
 
 import { useState, useEffect } from "react";
-import { Calendar as CalendarIcon, MapPin, Filter, X, Settings } from "lucide-react";
+import { Calendar as CalendarIcon, MapPin, Filter, X, Map } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EventsService } from "@/services/eventsService";
 import { StandardizedEvent } from "@/services/eventbrite";
+import { useAuth } from "@/hooks/useAuth";
 
 const BERLIN_EVENT_TAGS = [
   "Techno", "Open-Air", "Festival", "Club", "Concert", "Art", "Theater", 
@@ -16,6 +18,7 @@ const BERLIN_EVENT_TAGS = [
 ];
 
 export const EnhancedEventsCalendar = () => {
+  const { profile } = useAuth();
   const [events, setEvents] = useState<StandardizedEvent[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<StandardizedEvent[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
@@ -23,26 +26,31 @@ export const EnhancedEventsCalendar = () => {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedEvent, setSelectedEvent] = useState<StandardizedEvent | null>(null);
-  const [eventbriteApiKey, setEventbriteApiKey] = useState("");
-  const [showApiKeyInput, setShowApiKeyInput] = useState(false);
+  const [selectedArea, setSelectedArea] = useState<string>("");
 
-  const eventsService = new EventsService(eventbriteApiKey);
+  const eventsService = new EventsService();
+
+  useEffect(() => {
+    // Set default area from user profile
+    if (profile?.borough && !selectedArea) {
+      setSelectedArea(profile.borough);
+    }
+  }, [profile]);
 
   useEffect(() => {
     loadEvents();
-  }, [eventbriteApiKey]);
+  }, [selectedArea, selectedDate]);
 
   useEffect(() => {
     filterEvents();
-  }, [events, selectedTags, searchTerm, selectedDate]);
+  }, [events, selectedTags, searchTerm]);
 
   const loadEvents = async () => {
     setLoading(true);
     try {
       const filters = {
         date: selectedDate?.toISOString().split('T')[0],
-        tags: selectedTags.length > 0 ? selectedTags : undefined,
-        search: searchTerm || undefined
+        area: selectedArea || undefined
       };
       
       const allEvents = await eventsService.fetchAllEvents(filters);
@@ -56,14 +64,6 @@ export const EnhancedEventsCalendar = () => {
 
   const filterEvents = () => {
     let filtered = events;
-
-    // Filter by selected date
-    if (selectedDate) {
-      const selectedDateStr = selectedDate.toISOString().split('T')[0];
-      filtered = filtered.filter(event => 
-        event.event_date && event.event_date.startsWith(selectedDateStr)
-      );
-    }
 
     // Filter by search term
     if (searchTerm) {
@@ -87,6 +87,11 @@ export const EnhancedEventsCalendar = () => {
     }
 
     setFilteredEvents(filtered);
+    
+    // Auto-select first event if none selected or if current selection is not in filtered results
+    if (filtered.length > 0 && (!selectedEvent || !filtered.find(e => e.id === selectedEvent.id))) {
+      setSelectedEvent(filtered[0]);
+    }
   };
 
   const toggleTag = (tag: string) => {
@@ -107,59 +112,66 @@ export const EnhancedEventsCalendar = () => {
     });
   };
 
+  const handleDateSelect = (date: Date | undefined) => {
+    setSelectedDate(date);
+    // Clear search and tags when date changes for better UX
+    setSearchTerm("");
+    setSelectedTags([]);
+  };
+
+  const getEventCountForDate = (date: Date) => {
+    const dateStr = date.toISOString().split('T')[0];
+    return events.filter(event => event.event_date === dateStr).length;
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Calendar and Filters */}
       <div className="lg:col-span-1 space-y-4">
         <Card className="bg-white/10 backdrop-blur-md border-white/20 text-white">
           <CardHeader>
-            <CardTitle className="text-xl flex items-center justify-between">
-              <div className="flex items-center">
-                <CalendarIcon className="h-5 w-5 mr-2" />
-                Events Calendar
-              </div>
-              <Button
-                onClick={() => setShowApiKeyInput(!showApiKeyInput)}
-                variant="ghost"
-                size="sm"
-                className="text-blue-300 hover:text-white"
-              >
-                <Settings className="h-4 w-4" />
-              </Button>
+            <CardTitle className="text-xl flex items-center">
+              <CalendarIcon className="h-5 w-5 mr-2" />
+              Events Calendar
             </CardTitle>
             <CardDescription className="text-blue-200">
-              Kommende Events in Berlin
+              {selectedArea && `Events in ${selectedArea}`}
+              {selectedDate && ` - ${formatDate(selectedDate.toISOString().split('T')[0])}`}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {showApiKeyInput && (
-              <div className="space-y-2">
-                <label className="text-sm text-blue-300">Eventbrite API Key:</label>
-                <Input
-                  type="password"
-                  placeholder="Enter your Eventbrite API key"
-                  value={eventbriteApiKey}
-                  onChange={(e) => setEventbriteApiKey(e.target.value)}
-                  className="bg-white/10 border-white/20 text-white placeholder-blue-300"
-                />
-                <p className="text-xs text-blue-400">
-                  Get your API key from{" "}
-                  <a 
-                    href="https://www.eventbrite.com/platform/api-keys" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="underline hover:text-blue-300"
-                  >
-                    Eventbrite API Keys
-                  </a>
-                </p>
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2">
+                <Map className="h-4 w-4" />
+                <span className="text-sm font-medium">Area Filter</span>
               </div>
-            )}
+              
+              <Select value={selectedArea} onValueChange={setSelectedArea}>
+                <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                  <SelectValue placeholder="Select Berlin area" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All areas</SelectItem>
+                  {eventsService.getBerlinAreas().map(area => (
+                    <SelectItem key={area} value={area}>{area}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             
             <Calendar 
               selected={selectedDate} 
-              onSelect={setSelectedDate}
+              onSelect={handleDateSelect}
               className="bg-white/5 rounded-md p-2"
+              modifiers={{
+                hasEvents: (date) => getEventCountForDate(date) > 0
+              }}
+              modifiersStyles={{
+                hasEvents: { 
+                  backgroundColor: 'rgba(59, 130, 246, 0.3)',
+                  fontWeight: 'bold'
+                }
+              }}
             />
             
             <div className="space-y-3">
@@ -220,16 +232,21 @@ export const EnhancedEventsCalendar = () => {
           <CardHeader>
             <CardTitle className="text-lg">
               Events ({filteredEvents.length})
+              {selectedDate && (
+                <span className="text-sm font-normal text-blue-300 block">
+                  {formatDate(selectedDate.toISOString().split('T')[0])}
+                </span>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 max-h-96 overflow-y-auto">
             {loading ? (
-              <div className="text-center text-blue-300 py-8">Lädt...</div>
+              <div className="text-center text-blue-300 py-8">Loading events...</div>
             ) : filteredEvents.length === 0 ? (
               <div className="text-center text-blue-300 py-8">
-                <p>Keine Events gefunden</p>
+                <p>No events found</p>
                 <p className="text-sm mt-2 opacity-70">
-                  Versuche andere Filter oder füge eine Eventbrite API Key hinzu
+                  Try adjusting your filters or selecting a different date
                 </p>
               </div>
             ) : (
@@ -237,7 +254,7 @@ export const EnhancedEventsCalendar = () => {
                 <Card 
                   key={event.id} 
                   className={`bg-white/5 text-white cursor-pointer transition-all ${
-                    selectedEvent?.id === event.id ? 'ring-2 ring-blue-400' : 'hover:bg-white/10'
+                    selectedEvent?.id === event.id ? 'ring-2 ring-blue-400 bg-white/15' : 'hover:bg-white/10'
                   }`}
                   onClick={() => setSelectedEvent(event)}
                 >
@@ -296,7 +313,7 @@ export const EnhancedEventsCalendar = () => {
                 <div>
                   <h3 className="font-bold text-lg mb-2">{selectedEvent.title}</h3>
                   <p className="text-sm text-blue-200 mb-3 whitespace-pre-wrap">
-                    {selectedEvent.description || 'Keine Beschreibung verfügbar'}
+                    {selectedEvent.description || 'No description available'}
                   </p>
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center space-x-2">
@@ -327,7 +344,7 @@ export const EnhancedEventsCalendar = () => {
                       className="w-full mt-4 bg-blue-600 hover:bg-blue-700"
                       onClick={() => window.open(selectedEvent.source_url, '_blank')}
                     >
-                      Mehr Infos
+                      More Info
                     </Button>
                   )}
                 </div>
@@ -335,8 +352,8 @@ export const EnhancedEventsCalendar = () => {
             ) : (
               <div className="text-center text-blue-300 py-8">
                 <CalendarIcon className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>Wähle ein Event aus der Liste</p>
-                <p className="text-sm mt-1 opacity-70">um Details und Bilder zu sehen</p>
+                <p>Select an event from the list</p>
+                <p className="text-sm mt-1 opacity-70">to see details and images</p>
               </div>
             )}
           </CardContent>
