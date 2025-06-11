@@ -310,7 +310,18 @@ export const ChatInterface = ({
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder="Nachricht eingeben..."
-                  onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                  onKeyDown={(e) => {
+                    if (
+                      e.key === 'Enter' &&
+                      !e.shiftKey &&
+                      !e.ctrlKey &&
+                      !e.altKey &&
+                      !e.metaKey
+                    ) {
+                      e.preventDefault();
+                      sendMessage();
+                    }
+                  }}
                   className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
                 />
                 {(userProfile.subscription_tier === 'pro' || userProfile.subscription_tier === 'premium' || userProfile.user_role === 'seller') && (
