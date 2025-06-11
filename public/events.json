@@ -1,9 +1,49 @@
 [
   {
     "id": "1",
-    "title": "Placeholder Event",
-    "description": "Sample event data. Run 'npm run scrape-events' to fetch real events.",
-    "event_date": "2025-07-01",
-    "location": "Berlin"
+    "title": "Techno Night at Berghain",
+    "description": "Underground techno party with international DJs in Berlin's most famous club.",
+    "event_date": "2025-06-11",
+    "location": "Berghain, Berlin",
+    "image_url": "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=300&fit=crop",
+    "category": "techno",
+    "tags": [
+      "Techno",
+      "Club",
+      "Electronic",
+      "Dance"
+    ],
+    "source_url": "https://www.berlin.de"
+  },
+  {
+    "id": "2",
+    "title": "Open-Air Festival im Tempelhofer Feld",
+    "description": "Outdoor music festival with food trucks and local bands on the historic airfield.",
+    "event_date": "2025-06-13",
+    "location": "Tempelhofer Feld, Berlin",
+    "image_url": "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=400&h=300&fit=crop",
+    "category": "open-air",
+    "tags": [
+      "Open-Air",
+      "Festival",
+      "Music",
+      "Food"
+    ],
+    "source_url": "https://www.berlin.de"
+  },
+  {
+    "id": "3",
+    "title": "Contemporary Art Exhibition",
+    "description": "New contemporary art exhibition featuring local Berlin artists.",
+    "event_date": "2025-06-15",
+    "location": "Hamburger Bahnhof, Berlin",
+    "image_url": "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=300&fit=crop",
+    "category": "culture",
+    "tags": [
+      "Art",
+      "Culture",
+      "Exhibition"
+    ],
+    "source_url": "https://www.berlin.de"
   }
 ]
