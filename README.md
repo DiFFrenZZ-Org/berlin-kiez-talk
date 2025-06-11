@@ -82,3 +82,7 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+
+## Troubleshooting RLS errors
+
+When sending chat messages, the application relies on Supabase row level security (RLS) policies. If a message fails to send due to an RLS violation, check that the user is recorded in the `chat_participants` table for the room they are trying to message in. This is the most common cause of RLS errors.
