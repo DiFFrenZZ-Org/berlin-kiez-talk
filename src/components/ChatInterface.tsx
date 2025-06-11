@@ -13,6 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface ChatInterfaceProps {
   userProfile: UserProfile;
+  sendAnon?: boolean;
+  setSendAnon?: (v: boolean) => void;
 }
 
 interface ChatRoom {
@@ -33,7 +35,11 @@ interface ChatMessage {
   anonymous_name?: string | null;
 }
 
-export const ChatInterface = ({ userProfile }: ChatInterfaceProps) => {
+export const ChatInterface = ({
+  userProfile,
+  sendAnon: controlledSendAnon,
+  setSendAnon: controlledSetSendAnon,
+}: ChatInterfaceProps) => {
   const [message, setMessage] = useState('');
   const [activeChat, setActiveChat] = useState<string | null>(null);
   const [chats, setChats] = useState<ChatRoom[]>([]);
@@ -43,7 +49,9 @@ export const ChatInterface = ({ userProfile }: ChatInterfaceProps) => {
   const [newRoomDesc, setNewRoomDesc] = useState('');
   const [isTemporary, setIsTemporary] = useState(false);
   const [expiry, setExpiry] = useState<'24' | '48' | '72'>('24');
-  const [sendAnon, setSendAnon] = useState(false);
+  const [internalSendAnon, setInternalSendAnon] = useState(false);
+  const sendAnon = controlledSendAnon ?? internalSendAnon;
+  const setSendAnon = controlledSetSendAnon ?? setInternalSendAnon;
   const [channel, setChannel] = useState<RealtimeChannel | null>(null);
 
   useEffect(() => {
