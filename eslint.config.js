@@ -24,6 +24,8 @@ export default tseslint.config(
         { allowConstantExport: true },
       ],
       "@typescript-eslint/no-unused-vars": "off",
+      // Disable rule causing errors with current eslint version
+      "@typescript-eslint/no-unused-expressions": "off",
     },
   }
 );
