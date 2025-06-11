@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { Send, Plus, Shield } from "lucide-react";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,8 @@ interface ChatMessage {
   sender_id: string;
   content: string;
   created_at: string;
+  is_anonymous?: boolean | null;
+  anonymous_name?: string | null;
 }
 
 export const ChatInterface = ({ userProfile }: ChatInterfaceProps) => {
@@ -40,6 +43,8 @@ export const ChatInterface = ({ userProfile }: ChatInterfaceProps) => {
   const [newRoomDesc, setNewRoomDesc] = useState('');
   const [isTemporary, setIsTemporary] = useState(false);
   const [expiry, setExpiry] = useState<'24' | '48' | '72'>('24');
+  const [sendAnon, setSendAnon] = useState(false);
+  const [channel, setChannel] = useState<RealtimeChannel | null>(null);
 
   useEffect(() => {
     fetchChats();
@@ -47,29 +52,73 @@ export const ChatInterface = ({ userProfile }: ChatInterfaceProps) => {
 
   useEffect(() => {
     if (activeChat) {
-      // Since chat_messages table doesn't exist yet, show placeholder
-      setMessages([]);
+      fetchMessages(activeChat);
+      const ch = subscribeToRoom(activeChat);
+      setChannel(ch);
     } else {
       setMessages([]);
     }
+    return () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+        setChannel(null);
+      }
+    };
   }, [activeChat]);
 
   const fetchChats = async () => {
     const { data } = await supabase
       .from('chat_rooms')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('last_message_at', { ascending: false });
 
     setChats(data || []);
   };
 
+  const fetchMessages = async (roomId: string) => {
+    const { data } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .eq('room_id', roomId)
+      .order('created_at');
+    setMessages(data || []);
+  };
+
+  const subscribeToRoom = (roomId: string) => {
+    const channel = supabase
+      .channel(`room-${roomId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `room_id=eq.${roomId}` },
+        (payload) => {
+          setMessages((m) => [...m, payload.new as ChatMessage]);
+        }
+      )
+      .subscribe();
+    return channel;
+  };
+
   const sendMessage = async () => {
     if (!message.trim() || !activeChat) return;
+    let anonymousName: string | null = null;
+    if (sendAnon) {
+      const { data } = await supabase.rpc('generate_anonymous_name');
+      anonymousName = data as string;
+    }
 
-    // Since chat_messages table doesn't exist yet, just clear the message
-    // Future implementation will insert into chat_messages table
-    setMessage('');
-    console.log('Message would be sent:', message, 'to room:', activeChat);
+    const { error } = await supabase.from('chat_messages').insert({
+      room_id: activeChat,
+      sender_id: userProfile.id,
+      content: message,
+      is_anonymous: sendAnon,
+      anonymous_name: anonymousName,
+    });
+
+    if (!error) {
+      setMessage('');
+    } else {
+      console.error('sendMessage error', error);
+    }
   };
 
   const createRoom = async () => {
@@ -94,6 +143,11 @@ export const ChatInterface = ({ userProfile }: ChatInterfaceProps) => {
       .single();
 
     if (!error && data) {
+      await supabase.from('chat_participants').insert({
+        room_id: data.id,
+        user_id: userProfile.id,
+        is_admin: true,
+      });
       setChats(prev => [data, ...prev]);
       setOpenCreate(false);
       setNewRoomName('');
@@ -190,6 +244,13 @@ export const ChatInterface = ({ userProfile }: ChatInterfaceProps) => {
                 ) : (
                   messages.map((msg) => {
                     const isOwn = msg.sender_id === userProfile.id;
+                    const displayName = isOwn
+                      ? msg.is_anonymous
+                        ? 'Du (Anon)'
+                        : 'Du'
+                      : msg.is_anonymous
+                        ? msg.anonymous_name || 'Anon'
+                        : 'User';
                     return (
                       <div
                         key={msg.id}
@@ -200,6 +261,7 @@ export const ChatInterface = ({ userProfile }: ChatInterfaceProps) => {
                             isOwn ? 'bg-blue-600 text-white' : 'bg-white/20 text-white'
                           }`}
                         >
+                          <p className="text-xs font-semibold mb-1">{displayName}</p>
                           <p className="text-sm">{msg.content}</p>
                           <p className="text-xs opacity-70 mt-1">
                             {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -212,7 +274,7 @@ export const ChatInterface = ({ userProfile }: ChatInterfaceProps) => {
               </div>
 
               {/* Message Input */}
-              <div className="flex space-x-2">
+              <div className="flex space-x-2 items-center">
                 <Input
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
@@ -220,6 +282,12 @@ export const ChatInterface = ({ userProfile }: ChatInterfaceProps) => {
                   onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
                   className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
                 />
+                {(userProfile.subscription_tier === 'pro' || userProfile.subscription_tier === 'premium' || userProfile.user_role === 'seller') && (
+                  <div className="flex items-center space-x-1">
+                    <Checkbox id="anon-send" checked={sendAnon} onCheckedChange={() => setSendAnon(!sendAnon)} />
+                    <label htmlFor="anon-send" className="text-xs">Anonym</label>
+                  </div>
+                )}
                 <Button onClick={sendMessage} className="bg-blue-600 hover:bg-blue-700">
                   <Send className="h-4 w-4" />
                 </Button>
