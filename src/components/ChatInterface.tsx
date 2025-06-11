@@ -134,21 +134,32 @@ export const ChatInterface = ({
     return channel;
   };
 
-  const sendMessage = async () => {
-    if (!message.trim() || !activeChat) return;
-    const { error } = await sendChatMessage({
-      roomId: activeChat,
-      userId: userProfile.id,
-      content: message,
-      isAnonymous: sendAnon,
-    });
+  // Update the sendMessage function in ChatInterface:
+const sendMessage = async () => {
+  if (!message.trim() || !activeChat) return;
+  
+  // Change this line:
+  const { error } = await sendChatMessage({
+    roomId: activeChat,
+    userId: userProfile.id,
+    content: message,
+    isAnonymous: sendAnon,
+  });
 
-    if (!error) {
-      setMessage('');
-    } else {
-      console.error('sendMessage error', error);
-    }
-  };
+  // To this:
+  const result = await sendChatMessage({
+    roomId: activeChat,
+    userId: userProfile.id,
+    content: message,
+    isAnonymous: sendAnon,
+  });
+
+  if (!result.error) {
+    setMessage('');
+  } else {
+    console.error('sendMessage error', result.error);
+  }
+};
 
   const createRoom = async () => {
     if (!newRoomName.trim()) return;
