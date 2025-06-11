@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UserProfile } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import { sendChatMessage } from "@/services/sendChatMessage";
 
 interface ChatInterfaceProps {
@@ -54,6 +55,7 @@ export const ChatInterface = ({
   const sendAnon = controlledSendAnon ?? internalSendAnon;
   const setSendAnon = controlledSetSendAnon ?? setInternalSendAnon;
   const [channel, setChannel] = useState<RealtimeChannel | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchChats();
@@ -76,21 +78,46 @@ export const ChatInterface = ({
   }, [activeChat]);
 
   const fetchChats = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('chat_rooms')
       .select('*')
       .order('last_message_at', { ascending: false });
 
-    setChats(data || []);
+    if (error) {
+      console.error('fetchChats error', error);
+      toast({
+        title: 'Fehler',
+        description: 'Chats konnten nicht geladen werden',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (data) {
+      setChats(data);
+    }
   };
 
   const fetchMessages = async (roomId: string) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('chat_messages')
       .select('*')
       .eq('room_id', roomId)
       .order('created_at');
-    setMessages(data || []);
+
+    if (error) {
+      console.error('fetchMessages error', error);
+      toast({
+        title: 'Fehler',
+        description: 'Nachrichten konnten nicht geladen werden',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (data) {
+      setMessages(data);
+    }
   };
 
   const subscribeToRoom = (roomId: string) => {
