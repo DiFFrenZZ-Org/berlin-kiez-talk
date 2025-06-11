@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UserProfile } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { sendChatMessage } from "@/services/sendChatMessage";
 
 interface ChatInterfaceProps {
   userProfile: UserProfile;
@@ -100,18 +101,11 @@ export const ChatInterface = ({ userProfile }: ChatInterfaceProps) => {
 
   const sendMessage = async () => {
     if (!message.trim() || !activeChat) return;
-    let anonymousName: string | null = null;
-    if (sendAnon) {
-      const { data } = await supabase.rpc('generate_anonymous_name');
-      anonymousName = data as string;
-    }
-
-    const { error } = await supabase.from('chat_messages').insert({
-      room_id: activeChat,
-      sender_id: userProfile.id,
+    const { error } = await sendChatMessage({
+      roomId: activeChat,
+      userId: userProfile.id,
       content: message,
-      is_anonymous: sendAnon,
-      anonymous_name: anonymousName,
+      isAnonymous: sendAnon,
     });
 
     if (!error) {
