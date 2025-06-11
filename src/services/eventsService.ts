@@ -1,13 +1,9 @@
-import { EventbriteService, StandardizedEvent } from './eventbrite';
-import { supabase } from '@/integrations/supabase/client';
 
-interface EventFilters {
-  date?: string;
-  tags?: string[];
-  search?: string;
-  category?: string;
-  area?: string;
-}
+import { EventbriteService } from './eventbrite';
+import { StandardizedEvent, EventFilters } from '@/types/events';
+import { removeDuplicateEvents } from '@/utils/eventUtils';
+import { supabase } from '@/integrations/supabase/client';
+import { BERLIN_AREAS } from '@/constants/berlin';
 
 export class EventsService {
   private eventbriteService: EventbriteService;
@@ -32,10 +28,8 @@ export class EventsService {
       }
     });
 
-    // Remove duplicates based on title and date
-    const uniqueEvents = this.removeDuplicates(allEvents);
-
-    // Apply filters
+    // Remove duplicates and apply filters
+    const uniqueEvents = removeDuplicateEvents(allEvents);
     return this.applyFilters(uniqueEvents, filters);
   }
 
@@ -46,13 +40,11 @@ export class EventsService {
         .select('*')
         .order('event_date', { ascending: true });
 
-      // Apply date filter at database level for efficiency
       if (filters?.date) {
         query = query.eq('event_date', filters.date);
       }
 
       const { data, error } = await query;
-
       if (error) throw error;
 
       return (data || []).map(event => ({
@@ -105,28 +97,12 @@ export class EventsService {
     }
   }
 
-  private removeDuplicates(events: StandardizedEvent[]): StandardizedEvent[] {
-    const seen = new Set<string>();
-    return events.filter(event => {
-      const key = `${event.title}-${event.event_date}`;
-      if (seen.has(key)) {
-        return false;
-      }
-      seen.add(key);
-      return true;
-    });
-  }
-
   private applyFilters(events: StandardizedEvent[], filters?: EventFilters): StandardizedEvent[] {
     if (!filters) return events;
 
     return events.filter(event => {
-      // Date filter
-      if (filters.date && event.event_date !== filters.date) {
-        return false;
-      }
-
-      // Tags filter
+      if (filters.date && event.event_date !== filters.date) return false;
+      if (filters.category && event.category !== filters.category) return false;
       if (filters.tags && filters.tags.length > 0) {
         const hasMatchingTag = filters.tags.some(tag =>
           event.tags.includes(tag) ||
@@ -136,8 +112,6 @@ export class EventsService {
         );
         if (!hasMatchingTag) return false;
       }
-
-      // Search filter
       if (filters.search) {
         const searchTerm = filters.search.toLowerCase();
         const matchesSearch = 
@@ -146,12 +120,6 @@ export class EventsService {
           event.location?.toLowerCase().includes(searchTerm);
         if (!matchesSearch) return false;
       }
-
-      // Category filter
-      if (filters.category && event.category !== filters.category) {
-        return false;
-      }
-
       return true;
     });
   }
@@ -168,17 +136,6 @@ export class EventsService {
   }
 
   getBerlinAreas(): string[] {
-    return [
-      'Mitte',
-      'Kreuzberg', 
-      'Friedrichshain',
-      'Prenzlauer Berg',
-      'Neukölln',
-      'Charlottenburg',
-      'Schöneberg',
-      'Wedding',
-      'Tempelhof',
-      'Steglitz'
-    ];
+    return BERLIN_AREAS;
   }
 }
