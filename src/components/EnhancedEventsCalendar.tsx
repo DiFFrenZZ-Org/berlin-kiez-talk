@@ -1,24 +1,13 @@
 
 import { useState, useEffect } from "react";
-import { Calendar as CalendarIcon, MapPin, Filter, X } from "lucide-react";
+import { Calendar as CalendarIcon, MapPin, Filter, X, Settings } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client";
-
-interface BerlinEvent {
-  id: string;
-  title: string;
-  description: string | null;
-  event_date: string | null;
-  location: string | null;
-  image_url: string | null;
-  category: string | null;
-  tags: string[] | null;
-  source_url: string | null;
-}
+import { EventsService } from "@/services/eventsService";
+import { StandardizedEvent } from "@/services/eventbrite";
 
 const BERLIN_EVENT_TAGS = [
   "Techno", "Open-Air", "Festival", "Club", "Concert", "Art", "Theater", 
@@ -27,49 +16,39 @@ const BERLIN_EVENT_TAGS = [
 ];
 
 export const EnhancedEventsCalendar = () => {
-  const [events, setEvents] = useState<BerlinEvent[]>([]);
-  const [filteredEvents, setFilteredEvents] = useState<BerlinEvent[]>([]);
+  const [events, setEvents] = useState<StandardizedEvent[]>([]);
+  const [filteredEvents, setFilteredEvents] = useState<StandardizedEvent[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedEvent, setSelectedEvent] = useState<BerlinEvent | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<StandardizedEvent | null>(null);
+  const [eventbriteApiKey, setEventbriteApiKey] = useState("");
+  const [showApiKeyInput, setShowApiKeyInput] = useState(false);
+
+  const eventsService = new EventsService(eventbriteApiKey);
 
   useEffect(() => {
     loadEvents();
-  }, []);
+  }, [eventbriteApiKey]);
 
   useEffect(() => {
     filterEvents();
   }, [events, selectedTags, searchTerm, selectedDate]);
 
   const loadEvents = async () => {
+    setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('berlin_events')
-        .select('*')
-        .order('event_date', { ascending: true });
-
-      if (error) throw error;
+      const filters = {
+        date: selectedDate?.toISOString().split('T')[0],
+        tags: selectedTags.length > 0 ? selectedTags : undefined,
+        search: searchTerm || undefined
+      };
       
-      if (data && data.length > 0) {
-        setEvents(data);
-      } else {
-        // Fallback to JSON file if no database events
-        const res = await fetch('/events.json');
-        const fallbackData = await res.json();
-        setEvents(fallbackData);
-      }
+      const allEvents = await eventsService.fetchAllEvents(filters);
+      setEvents(allEvents);
     } catch (err) {
       console.error('Failed to load events', err);
-      // Load fallback events
-      try {
-        const res = await fetch('/events.json');
-        const data = await res.json();
-        setEvents(data);
-      } catch (fallbackErr) {
-        console.error('Failed to load fallback events', fallbackErr);
-      }
     } finally {
       setLoading(false);
     }
@@ -134,15 +113,49 @@ export const EnhancedEventsCalendar = () => {
       <div className="lg:col-span-1 space-y-4">
         <Card className="bg-white/10 backdrop-blur-md border-white/20 text-white">
           <CardHeader>
-            <CardTitle className="text-xl flex items-center">
-              <CalendarIcon className="h-5 w-5 mr-2" />
-              Events Calendar
+            <CardTitle className="text-xl flex items-center justify-between">
+              <div className="flex items-center">
+                <CalendarIcon className="h-5 w-5 mr-2" />
+                Events Calendar
+              </div>
+              <Button
+                onClick={() => setShowApiKeyInput(!showApiKeyInput)}
+                variant="ghost"
+                size="sm"
+                className="text-blue-300 hover:text-white"
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
             </CardTitle>
             <CardDescription className="text-blue-200">
               Kommende Events in Berlin
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {showApiKeyInput && (
+              <div className="space-y-2">
+                <label className="text-sm text-blue-300">Eventbrite API Key:</label>
+                <Input
+                  type="password"
+                  placeholder="Enter your Eventbrite API key"
+                  value={eventbriteApiKey}
+                  onChange={(e) => setEventbriteApiKey(e.target.value)}
+                  className="bg-white/10 border-white/20 text-white placeholder-blue-300"
+                />
+                <p className="text-xs text-blue-400">
+                  Get your API key from{" "}
+                  <a 
+                    href="https://www.eventbrite.com/platform/api-keys" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="underline hover:text-blue-300"
+                  >
+                    Eventbrite API Keys
+                  </a>
+                </p>
+              </div>
+            )}
+            
             <Calendar 
               selected={selectedDate} 
               onSelect={setSelectedDate}
@@ -216,7 +229,7 @@ export const EnhancedEventsCalendar = () => {
               <div className="text-center text-blue-300 py-8">
                 <p>Keine Events gefunden</p>
                 <p className="text-sm mt-2 opacity-70">
-                  Versuche andere Filter oder Suchbegriffe
+                  Versuche andere Filter oder füge eine Eventbrite API Key hinzu
                 </p>
               </div>
             ) : (
@@ -248,6 +261,9 @@ export const EnhancedEventsCalendar = () => {
                         ))}
                       </div>
                     )}
+                    <div className="text-xs text-blue-400">
+                      Source: {event.source}
+                    </div>
                   </CardContent>
                 </Card>
               ))
