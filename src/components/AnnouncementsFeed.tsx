@@ -42,16 +42,16 @@ export const AnnouncementsFeed = () => {
             <CardTitle className="text-xl flex items-center">
               <Megaphone className="h-5 w-5 mr-2" /> Ankündigungen
             </CardTitle>
-            <CardDescription className="text-blue-200">
+            <CardDescription className="text-contrast-low">
               Wichtige Infos aus der Community
             </CardDescription>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {loading ? (
-            <div className="text-center text-blue-300 py-8">Lädt...</div>
+            <div className="text-center text-contrast-low py-8">Lädt...</div>
           ) : announcements.length === 0 ? (
-            <div className="text-center text-blue-300 py-8">
+            <div className="text-center text-contrast-low py-8">
               <p>Keine Ankündigungen verfügbar</p>
               <p className="text-sm mt-2 opacity-70">Diese Funktion wird bald verfügbar sein</p>
             </div>
@@ -59,12 +59,12 @@ export const AnnouncementsFeed = () => {
             announcements.map((ann) => (
               <Card key={ann.id} className="bg-white/5 text-white">
                 <CardContent className="p-4 space-y-2">
-                  <div className="flex items-center justify-between text-xs text-blue-300">
+                  <div className="flex items-center justify-between text-xs text-contrast-low">
                     <span>{ann.profile?.nickname || "System"}</span>
                     <span>{formatTimeAgo(ann.created_at)}</span>
                   </div>
                   <h3 className="font-semibold text-lg">{ann.title}</h3>
-                  <p className="text-sm text-blue-200 whitespace-pre-wrap">{ann.content}</p>
+                  <p className="text-sm text-contrast-low whitespace-pre-wrap">{ann.content}</p>
                 </CardContent>
               </Card>
             ))
