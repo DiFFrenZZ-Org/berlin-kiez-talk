@@ -28,6 +28,8 @@ export default tseslint.config(
       ],
       // Disable rule causing errors with current eslint version
       "@typescript-eslint/no-unused-expressions": "off",
+      // Disable requirement for React to be in scope with JSX (React 17+)
+      "react/react-in-jsx-scope": "off",
     },
   }
 );
