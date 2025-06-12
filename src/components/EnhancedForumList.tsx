@@ -49,9 +49,9 @@ export const EnhancedForumList = ({ userProfile }: EnhancedForumListProps) => {
   const [categories, setCategories] = useState<ForumCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [openNew, setOpenNew] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [selectedPostType, setSelectedPostType] = useState<string>('all');
-  const [selectedBorough, setSelectedBorough] = useState<string>(userProfile.borough || 'all');
+  const [selectedCategory, setSelectedCategory] = useState<string>("__placeholder");
+  const [selectedPostType, setSelectedPostType] = useState<string>("__placeholder");
+  const [selectedBorough, setSelectedBorough] = useState<string>("__placeholder");
   const [searchTerm, setSearchTerm] = useState('');
 
   const berlinBoroughs = [
@@ -210,6 +210,9 @@ export const EnhancedForumList = ({ userProfile }: EnhancedForumListProps) => {
                   <SelectValue placeholder="Kategorie wählen" />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-800 border-slate-600">
+                  <SelectItem value="__placeholder" disabled>
+                    Kategorie wählen
+                  </SelectItem>
                   <SelectItem value="all" className="text-white hover:bg-slate-700">Alle Kategorien</SelectItem>
                   {categories.map((category) => (
                     <SelectItem key={category.id} value={category.id} className="text-white hover:bg-slate-700">
@@ -227,6 +230,9 @@ export const EnhancedForumList = ({ userProfile }: EnhancedForumListProps) => {
                   <SelectValue placeholder="Typ wählen" />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-800 border-slate-600">
+                  <SelectItem value="__placeholder" disabled>
+                    Typ wählen
+                  </SelectItem>
                   <SelectItem value="all" className="text-white hover:bg-slate-700">Alle Typen</SelectItem>
                   {postTypes.map((type) => (
                     <SelectItem key={type.value} value={type.value} className="text-white hover:bg-slate-700">
@@ -244,6 +250,9 @@ export const EnhancedForumList = ({ userProfile }: EnhancedForumListProps) => {
                   <SelectValue placeholder="Bezirk wählen" />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-800 border-slate-600">
+                  <SelectItem value="__placeholder" disabled>
+                    Bezirk wählen
+                  </SelectItem>
                   <SelectItem value="all" className="text-white hover:bg-slate-700">Alle Bezirke</SelectItem>
                   {berlinBoroughs.map((borough) => (
                     <SelectItem key={borough} value={borough} className="text-white hover:bg-slate-700">

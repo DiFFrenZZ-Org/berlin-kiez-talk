@@ -1,5 +1,4 @@
-
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { LocationCheck } from "@/components/LocationCheck";
 import { AuthFlow } from "@/components/AuthFlow";
 import { Dashboard } from "@/components/Dashboard";
@@ -7,19 +6,14 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 
 const Index = () => {
-  const [isLocationVerified, setIsLocationVerified] = useState<boolean | null>(null);
   const { user, profile, loading } = useAuth();
+  const [locationVerifiedState, setLocationVerifiedState] = useState<boolean | null>(null);
+  const isLocationVerified = profile?.is_super_admin ? true : locationVerifiedState;
   const { toast } = useToast();
-
-  useEffect(() => {
-    if (user && profile?.is_super_admin && isLocationVerified === null) {
-      setIsLocationVerified(true);
-    }
-  }, [user, profile, isLocationVerified]);
 
   const handleLocationVerified = (hasAccess: boolean) => {
     console.log('Location verification result:', hasAccess);
-    setIsLocationVerified(hasAccess);
+    setLocationVerifiedState(hasAccess);
     if (!hasAccess) {
       toast({
         title: "Zugang beschränkt",

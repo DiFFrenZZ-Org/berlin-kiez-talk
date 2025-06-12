@@ -6,10 +6,13 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { TestDataProvider } from "@/components/TestDataProvider";
-import Index from "./pages/Index";
-import ProfilePage from "./pages/Profile";
-import NotFound from "./pages/NotFound";
-import ChatTest from "./pages/ChatTest";
+import { Suspense, lazy } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const Index = lazy(() => import("./pages/Index"));
+const ProfilePage = lazy(() => import("./pages/Profile"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const ChatTest = lazy(() => import("./pages/ChatTest"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -37,13 +40,21 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/chat-test" element={<ChatTest />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+            <Suspense
+              fallback={
+                <div className="p-4">
+                  <Skeleton className="w-full h-8" />
+                </div>
+              }
+            >
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/chat-test" element={<ChatTest />} />
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
           </BrowserRouter>
         </TooltipProvider>
       </TestDataProvider>
