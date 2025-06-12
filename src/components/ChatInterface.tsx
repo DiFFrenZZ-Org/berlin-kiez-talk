@@ -1,6 +1,6 @@
 
-import { useState, useEffect } from "react";
-import { Send, Plus, Shield } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Send, Plus, Shield, Paperclip, Smile, MoreHorizontal, Search } from "lucide-react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { UserProfile } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -22,9 +24,17 @@ interface ChatInterfaceProps {
 interface ChatRoom {
   id: string;
   name: string;
+  description?: string | null;
   lastMessage?: string | null;
+  last_message_at?: string | null;
+  last_message_content?: string | null;
   unread?: number;
   expires_at?: string | null;
+  room_type?: string | null;
+  avatar_url?: string | null;
+  is_encrypted?: boolean | null;
+  bridge_type?: string | null;
+  participant_count?: number | null;
 }
 
 interface ChatMessage {
@@ -35,6 +45,9 @@ interface ChatMessage {
   created_at: string;
   is_anonymous?: boolean | null;
   anonymous_name?: string | null;
+  reply_to?: string | null;
+  reactions?: any;
+  attachments?: any[];
 }
 
 export const ChatInterface = ({
@@ -51,11 +64,22 @@ export const ChatInterface = ({
   const [newRoomDesc, setNewRoomDesc] = useState('');
   const [isTemporary, setIsTemporary] = useState(false);
   const [expiry, setExpiry] = useState<'24' | '48' | '72'>('24');
+  const [roomType, setRoomType] = useState<'group' | 'channel'>('group');
   const [internalSendAnon, setInternalSendAnon] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const sendAnon = controlledSendAnon ?? internalSendAnon;
   const setSendAnon = controlledSetSendAnon ?? setInternalSendAnon;
   const [channel, setChannel] = useState<RealtimeChannel | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   useEffect(() => {
     fetchChats();
@@ -86,8 +110,8 @@ export const ChatInterface = ({
     if (error) {
       console.error('fetchChats error', error);
       toast({
-        title: 'Fehler',
-        description: 'Chats konnten nicht geladen werden',
+        title: 'Error',
+        description: 'Could not load chat rooms',
         variant: 'destructive',
       });
       return;
@@ -108,8 +132,8 @@ export const ChatInterface = ({
     if (error) {
       console.error('fetchMessages error', error);
       toast({
-        title: 'Fehler',
-        description: 'Nachrichten konnten nicht geladen werden',
+        title: 'Error',
+        description: 'Could not load messages',
         variant: 'destructive',
       });
       return;
@@ -134,32 +158,22 @@ export const ChatInterface = ({
     return channel;
   };
 
-  // Update the sendMessage function in ChatInterface:
-const sendMessage = async () => {
-  if (!message.trim() || !activeChat) return;
-  
-  // Change this line:
-  const { error } = await sendChatMessage({
-    roomId: activeChat,
-    userId: userProfile.id,
-    content: message,
-    isAnonymous: sendAnon,
-  });
+  const sendMessage = async () => {
+    if (!message.trim() || !activeChat) return;
+    
+    const result = await sendChatMessage({
+      roomId: activeChat,
+      userId: userProfile.id,
+      content: message,
+      isAnonymous: sendAnon,
+    });
 
-  // To this:
-  const result = await sendChatMessage({
-    roomId: activeChat,
-    userId: userProfile.id,
-    content: message,
-    isAnonymous: sendAnon,
-  });
-
-  if (!result.error) {
-    setMessage('');
-  } else {
-    console.error('sendMessage error', result.error);
-  }
-};
+    if (!result.error) {
+      setMessage('');
+    } else {
+      console.error('sendMessage error', result.error);
+    }
+  };
 
   const createRoom = async () => {
     if (!newRoomName.trim()) return;
@@ -169,6 +183,8 @@ const sendMessage = async () => {
       description: newRoomDesc,
       created_by: userProfile.id,
       is_temporary: isTemporary,
+      room_type: roomType,
+      is_encrypted: true,
     };
 
     if (isTemporary) {
@@ -196,201 +212,321 @@ const sendMessage = async () => {
     }
   };
 
+  const filteredChats = chats.filter(chat => 
+    chat.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const activeRoom = chats.find(c => c.id === activeChat);
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
-      {/* Chat List */}
-      <Card className="bg-white/10 backdrop-blur-md border-white/20 text-white">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">Chats</CardTitle>
+    <div className="flex h-[calc(100vh-120px)] bg-slate-900/50 backdrop-blur-md rounded-lg border border-white/20 overflow-hidden">
+      {/* Sidebar - Chat List */}
+      <div className="w-80 bg-slate-800/50 border-r border-white/20 flex flex-col">
+        {/* Header */}
+        <div className="p-4 border-b border-white/20">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold text-white">Messages</h2>
             <Button
               size="sm"
               onClick={() => setOpenCreate(true)}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-blue-600 hover:bg-blue-700 h-8 w-8 p-0"
             >
               <Plus className="h-4 w-4" />
             </Button>
           </div>
-          <CardDescription className="text-blue-200">
-            Ende-zu-Ende verschlüsselt
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {chats.length === 0 ? (
-            <div className="text-center text-blue-300 py-8">
-              <p>Keine Chaträume verfügbar</p>
-              <p className="text-sm mt-2 opacity-70">Erstellen Sie einen neuen Raum</p>
+          
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search conversations..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 bg-slate-700/50 border-slate-600 text-white placeholder:text-gray-400"
+            />
+          </div>
+        </div>
+
+        {/* Chat List */}
+        <div className="flex-1 overflow-y-auto">
+          {filteredChats.length === 0 ? (
+            <div className="p-4 text-center text-gray-400">
+              <p>No conversations found</p>
             </div>
           ) : (
-            chats.map((chat) => (
+            filteredChats.map((chat) => (
               <div
                 key={chat.id}
                 onClick={() => setActiveChat(chat.id)}
-                className={`p-3 rounded-lg cursor-pointer transition-colors ${
-                  activeChat === chat.id 
-                    ? 'bg-blue-600/30 border border-blue-400/50' 
-                    : 'bg-white/5 hover:bg-white/10'
+                className={`p-4 cursor-pointer border-b border-white/10 hover:bg-slate-700/30 transition-colors ${
+                  activeChat === chat.id ? 'bg-blue-600/20 border-r-2 border-r-blue-500' : ''
                 }`}
               >
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center space-x-2">
-                    <span className="font-medium text-sm">{chat.name}</span>
-                    <Shield className="h-3 w-3 text-green-400" />
-                  </div>
-                  <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-3">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={chat.avatar_url || ''} />
+                    <AvatarFallback className="bg-blue-600 text-white">
+                      {chat.name.substring(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center space-x-2">
+                        <span className="font-medium text-white text-sm truncate">{chat.name}</span>
+                        {chat.is_encrypted && <Shield className="h-3 w-3 text-green-400" />}
+                        {chat.bridge_type && (
+                          <Badge variant="outline" className="text-xs px-1 py-0">
+                            {chat.bridge_type}
+                          </Badge>
+                        )}
+                      </div>
+                      {chat.last_message_at && (
+                        <span className="text-xs text-gray-400">
+                          {new Date(chat.last_message_at).toLocaleTimeString([], { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          })}
+                        </span>
+                      )}
+                    </div>
+                    
+                    {chat.last_message_content && (
+                      <p className="text-xs text-gray-400 truncate">{chat.last_message_content}</p>
+                    )}
+                    
                     {chat.expires_at && (
-                      <span className="text-xs text-blue-300">
-                        {new Date(chat.expires_at).toLocaleDateString()}
-                      </span>
+                      <p className="text-xs text-yellow-400 mt-1">
+                        Expires: {new Date(chat.expires_at).toLocaleDateString()}
+                      </p>
                     )}
                   </div>
                 </div>
-                {chat.lastMessage && (
-                  <p className="text-xs text-blue-200 truncate">{chat.lastMessage}</p>
-                )}
               </div>
             ))
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      {/* Chat Window */}
-      <Card className="lg:col-span-2 bg-white/10 backdrop-blur-md border-white/20 text-white">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-lg">
-                {activeChat ? chats.find(c => c.id === activeChat)?.name : 'Chat auswählen'}
-              </CardTitle>
-              {activeChat && (
-                <div className="flex items-center space-x-2 mt-1">
-                  <Shield className="h-4 w-4 text-green-400" />
-                  <span className="text-xs text-green-400">Ende-zu-Ende verschlüsselt</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="flex flex-col h-[400px]">
-          {activeChat ? (
-            <>
-              {/* Messages */}
-              <div className="flex-1 space-y-3 mb-4 overflow-y-auto">
-                {messages.length === 0 ? (
-                  <div className="flex-1 flex items-center justify-center text-blue-300">
-                    <div className="text-center">
-                      <p>Keine Nachrichten in diesem Raum</p>
-                      <p className="text-sm mt-2 opacity-70">Chat-Funktionalität wird bald verfügbar sein</p>
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col">
+        {activeChat && activeRoom ? (
+          <>
+            {/* Chat Header */}
+            <div className="p-4 border-b border-white/20 bg-slate-800/30">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={activeRoom.avatar_url || ''} />
+                    <AvatarFallback className="bg-blue-600 text-white text-sm">
+                      {activeRoom.name.substring(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  
+                  <div>
+                    <h3 className="font-semibold text-white">{activeRoom.name}</h3>
+                    <div className="flex items-center space-x-2">
+                      {activeRoom.is_encrypted && (
+                        <div className="flex items-center space-x-1">
+                          <Shield className="h-3 w-3 text-green-400" />
+                          <span className="text-xs text-green-400">End-to-end encrypted</span>
+                        </div>
+                      )}
+                      {activeRoom.participant_count && (
+                        <span className="text-xs text-gray-400">
+                          {activeRoom.participant_count} members
+                        </span>
+                      )}
                     </div>
                   </div>
-                ) : (
-                  messages.map((msg) => {
-                    const isOwn = msg.sender_id === userProfile.id;
-                    const displayName = isOwn
-                      ? msg.is_anonymous
-                        ? 'Du (Anon)'
-                        : 'Du'
-                      : msg.is_anonymous
-                        ? msg.anonymous_name || 'Anon'
-                        : 'User';
-                    return (
-                      <div
-                        key={msg.id}
-                        className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
-                      >
+                </div>
+                
+                <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {messages.length === 0 ? (
+                <div className="flex-1 flex items-center justify-center text-gray-400">
+                  <div className="text-center">
+                    <p>No messages in this room yet</p>
+                    <p className="text-sm mt-2 opacity-70">Send the first message!</p>
+                  </div>
+                </div>
+              ) : (
+                messages.map((msg, index) => {
+                  const isOwn = msg.sender_id === userProfile.id;
+                  const displayName = isOwn
+                    ? msg.is_anonymous ? 'You (Anonymous)' : 'You'
+                    : msg.is_anonymous ? msg.anonymous_name || 'Anonymous' : 'User';
+                  
+                  const showAvatar = !isOwn && (index === 0 || messages[index - 1].sender_id !== msg.sender_id);
+                  
+                  return (
+                    <div
+                      key={msg.id}
+                      className={`flex ${isOwn ? 'justify-end' : 'justify-start'} ${
+                        index > 0 && messages[index - 1].sender_id === msg.sender_id ? 'mt-1' : 'mt-4'
+                      }`}
+                    >
+                      {!isOwn && showAvatar && (
+                        <Avatar className="h-6 w-6 mr-2 mt-1">
+                          <AvatarFallback className="bg-gray-600 text-white text-xs">
+                            {displayName.substring(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                      )}
+                      
+                      {!isOwn && !showAvatar && <div className="w-8" />}
+                      
+                      <div className={`max-w-xs lg:max-w-md ${isOwn ? 'ml-auto' : ''}`}>
+                        {showAvatar && !isOwn && (
+                          <p className="text-xs font-medium text-gray-300 mb-1 ml-1">{displayName}</p>
+                        )}
+                        
                         <div
-                          className={`max-w-xs px-4 py-2 rounded-lg ${
-                            isOwn ? 'bg-blue-600 text-white' : 'bg-white/20 text-white'
+                          className={`px-4 py-2 rounded-lg ${
+                            isOwn 
+                              ? 'bg-blue-600 text-white rounded-br-sm' 
+                              : 'bg-slate-700 text-white rounded-bl-sm'
                           }`}
                         >
-                          <p className="text-xs font-semibold mb-1">{displayName}</p>
-                          <p className="text-sm">{msg.content}</p>
+                          <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                           <p className="text-xs opacity-70 mt-1">
-                            {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            {new Date(msg.created_at).toLocaleTimeString([], { 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })}
                           </p>
                         </div>
                       </div>
-                    );
-                  })
-                )}
-              </div>
-
-              {/* Message Input */}
-              <div className="flex space-x-2 items-center">
-                <Input
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder="Nachricht eingeben..."
-                  onKeyDown={(e) => {
-                    if (
-                      e.key === 'Enter' &&
-                      !e.shiftKey &&
-                      !e.ctrlKey &&
-                      !e.altKey &&
-                      !e.metaKey
-                    ) {
-                      e.preventDefault();
-                      sendMessage();
-                    }
-                  }}
-                  className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
-                />
-                {(userProfile.subscription_tier === 'pro' || userProfile.subscription_tier === 'premium' || userProfile.user_role === 'seller') && (
-                  <div className="flex items-center space-x-1">
-                    <Checkbox id="anon-send" checked={sendAnon} onCheckedChange={() => setSendAnon(!sendAnon)} />
-                    <label htmlFor="anon-send" className="text-xs">Anonym</label>
-                  </div>
-                )}
-                <Button onClick={sendMessage} className="bg-blue-600 hover:bg-blue-700">
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
-            </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-blue-300">
-              <p>Wählen Sie einen Chat aus, um zu beginnen</p>
+                    </div>
+                  );
+                })
+              )}
+              <div ref={messagesEndRef} />
             </div>
-          )}
-        </CardContent>
-      </Card>
+
+            {/* Message Input */}
+            <div className="p-4 border-t border-white/20 bg-slate-800/30">
+              <div className="flex items-end space-x-2">
+                <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white mb-2">
+                  <Paperclip className="h-4 w-4" />
+                </Button>
+                
+                <div className="flex-1">
+                  {/* Anonymous toggle for eligible users */}
+                  {(userProfile.subscription_tier === 'pro' || 
+                    userProfile.subscription_tier === 'premium' || 
+                    userProfile.user_role === 'seller') && (
+                    <div className="flex items-center space-x-2 mb-2">
+                      <Checkbox 
+                        id="anon-send" 
+                        checked={sendAnon} 
+                        onCheckedChange={() => setSendAnon(!sendAnon)} 
+                      />
+                      <label htmlFor="anon-send" className="text-xs text-gray-300">
+                        Send anonymously
+                      </label>
+                    </div>
+                  )}
+                  
+                  <div className="flex items-end space-x-2">
+                    <Input
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      placeholder="Type a message..."
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          sendMessage();
+                        }
+                      }}
+                      className="bg-slate-700 border-slate-600 text-white placeholder:text-gray-400 min-h-[40px] resize-none"
+                      style={{ minHeight: '40px' }}
+                    />
+                    
+                    <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+                      <Smile className="h-4 w-4" />
+                    </Button>
+                    
+                    <Button 
+                      onClick={sendMessage} 
+                      className="bg-blue-600 hover:bg-blue-700"
+                      disabled={!message.trim()}
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center text-gray-400">
+            <div className="text-center">
+              <h3 className="text-lg font-medium mb-2">Welcome to KiezTalk</h3>
+              <p>Select a conversation to start messaging</p>
+            </div>
+          </div>
+        )}
+      </div>
       
+      {/* Create Room Dialog */}
       <Dialog open={openCreate} onOpenChange={setOpenCreate}>
-        <DialogContent className="bg-white/10 border-white/20 text-white">
+        <DialogContent className="bg-slate-800 border-slate-600 text-white">
           <DialogHeader>
-            <DialogTitle>Neuen Raum erstellen</DialogTitle>
+            <DialogTitle>Create New Room</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="space-y-4">
             <Input
-              placeholder="Raumname"
+              placeholder="Room name"
               value={newRoomName}
               onChange={(e) => setNewRoomName(e.target.value)}
-              className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
+              className="bg-slate-700 border-slate-600 text-white placeholder:text-gray-400"
             />
             <Input
-              placeholder="Beschreibung"
+              placeholder="Description (optional)"
               value={newRoomDesc}
               onChange={(e) => setNewRoomDesc(e.target.value)}
-              className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
+              className="bg-slate-700 border-slate-600 text-white placeholder:text-gray-400"
             />
+            
+            <Select value={roomType} onValueChange={(v) => setRoomType(v as 'group' | 'channel')}>
+              <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+                <SelectValue placeholder="Room type" />
+              </SelectTrigger>
+              <SelectContent className="bg-slate-800 border-slate-600 text-white">
+                <SelectItem value="group">Group Chat</SelectItem>
+                <SelectItem value="channel">Channel</SelectItem>
+              </SelectContent>
+            </Select>
+            
             <div className="flex items-center space-x-2">
               <Checkbox id="temp" checked={isTemporary} onCheckedChange={() => setIsTemporary(!isTemporary)} />
-              <label htmlFor="temp" className="text-sm">Temporärer Raum</label>
+              <label htmlFor="temp" className="text-sm">Temporary room</label>
             </div>
+            
             {isTemporary && (
               <Select value={expiry} onValueChange={(v) => setExpiry(v as '24' | '48' | '72')}>
-                <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                  <SelectValue placeholder="Ablauf" />
+                <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+                  <SelectValue placeholder="Expires in" />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-800 border-slate-600 text-white">
-                  <SelectItem value="24">24 Stunden</SelectItem>
-                  <SelectItem value="48">48 Stunden</SelectItem>
-                  <SelectItem value="72">72 Stunden</SelectItem>
+                  <SelectItem value="24">24 hours</SelectItem>
+                  <SelectItem value="48">48 hours</SelectItem>
+                  <SelectItem value="72">72 hours</SelectItem>
                 </SelectContent>
               </Select>
             )}
           </div>
           <DialogFooter>
-            <Button onClick={createRoom} className="bg-blue-600 hover:bg-blue-700">Erstellen</Button>
+            <Button onClick={createRoom} className="bg-blue-600 hover:bg-blue-700">
+              Create Room
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
