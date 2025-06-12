@@ -38,8 +38,12 @@ export const ChatInterface = ({
   const [newRoomName, setNewRoomName] = useState('');
   const [newRoomDesc, setNewRoomDesc] = useState('');
   const [isTemporary, setIsTemporary] = useState(false);
-  const [expiry, setExpiry] = useState<'24' | '48' | '72'>('24');
-  const [roomType, setRoomType] = useState<'group' | 'channel'>('group');
+  const [expiry, setExpiry] = useState<'__placeholder' | '24' | '48' | '72'>(
+    "__placeholder"
+  );
+  const [roomType, setRoomType] = useState<'__placeholder' | 'group' | 'channel'>(
+    "__placeholder"
+  );
   const [internalSendAnon, setInternalSendAnon] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const sendAnon = controlledSendAnon ?? internalSendAnon;
@@ -610,6 +614,9 @@ export const ChatInterface = ({
                 <SelectValue placeholder="Room type" />
               </SelectTrigger>
               <SelectContent className="bg-slate-800 border-slate-600 text-white">
+                <SelectItem value="__placeholder" disabled>
+                  Room type
+                </SelectItem>
                 <SelectItem value="group">Group Chat</SelectItem>
                 <SelectItem value="channel">Channel</SelectItem>
               </SelectContent>
@@ -625,11 +632,14 @@ export const ChatInterface = ({
                 <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
                   <SelectValue placeholder="Expires in" />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-600 text-white">
+              <SelectContent className="bg-slate-800 border-slate-600 text-white">
+                  <SelectItem value="__placeholder" disabled>
+                    Expires in
+                  </SelectItem>
                   <SelectItem value="24">24 hours</SelectItem>
                   <SelectItem value="48">48 hours</SelectItem>
                   <SelectItem value="72">72 hours</SelectItem>
-                </SelectContent>
+              </SelectContent>
               </Select>
             )}
           </div>

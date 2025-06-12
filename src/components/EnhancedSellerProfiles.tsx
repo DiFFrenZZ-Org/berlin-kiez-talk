@@ -42,10 +42,10 @@ export const EnhancedSellerProfiles = ({ userProfile }: EnhancedSellerProfilesPr
   const [listings, setListings] = useState<SellerListing[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [selectedBorough, setSelectedBorough] = useState<string>(userProfile.borough || 'all');
+  const [selectedCategory, setSelectedCategory] = useState<string>("__placeholder");
+  const [selectedBorough, setSelectedBorough] = useState<string>("__placeholder");
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState<string>('newest');
+  const [sortBy, setSortBy] = useState<string>("__placeholder");
 
   const berlinBoroughs = [
     'Mitte', 'Friedrichshain-Kreuzberg', 'Pankow', 'Charlottenburg-Wilmersdorf',
@@ -206,6 +206,9 @@ export const EnhancedSellerProfiles = ({ userProfile }: EnhancedSellerProfilesPr
                   <SelectValue placeholder="Kategorie wählen" />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-800 border-slate-600">
+                  <SelectItem value="__placeholder" disabled>
+                    Kategorie wählen
+                  </SelectItem>
                   <SelectItem value="all" className="text-white hover:bg-slate-700">Alle Kategorien</SelectItem>
                   {categories.map((category) => (
                     <SelectItem key={category.id} value={category.id} className="text-white hover:bg-slate-700">
@@ -223,6 +226,9 @@ export const EnhancedSellerProfiles = ({ userProfile }: EnhancedSellerProfilesPr
                   <SelectValue placeholder="Bezirk wählen" />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-800 border-slate-600">
+                  <SelectItem value="__placeholder" disabled>
+                    Bezirk wählen
+                  </SelectItem>
                   <SelectItem value="all" className="text-white hover:bg-slate-700">Alle Bezirke</SelectItem>
                   {berlinBoroughs.map((borough) => (
                     <SelectItem key={borough} value={borough} className="text-white hover:bg-slate-700">
@@ -240,6 +246,9 @@ export const EnhancedSellerProfiles = ({ userProfile }: EnhancedSellerProfilesPr
                   <SelectValue placeholder="Sortieren nach" />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-800 border-slate-600">
+                  <SelectItem value="__placeholder" disabled>
+                    Sortieren nach
+                  </SelectItem>
                   <SelectItem value="newest" className="text-white hover:bg-slate-700">Neueste</SelectItem>
                   <SelectItem value="rating" className="text-white hover:bg-slate-700">Bewertung</SelectItem>
                   <SelectItem value="views" className="text-white hover:bg-slate-700">Aufrufe</SelectItem>

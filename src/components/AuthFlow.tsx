@@ -24,7 +24,7 @@ export const AuthFlow = () => {
     email: '',
     password: '',
     nickname: '',
-    borough: ''
+    borough: '__placeholder',
   });
 
   const { signIn, signUp } = useAuth();
@@ -190,6 +190,9 @@ export const AuthFlow = () => {
                       <SelectValue placeholder="Wählen Sie Ihren Bezirk" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="__placeholder" disabled>
+                        Wählen Sie Ihren Bezirk
+                      </SelectItem>
                       {berlinBoroughs.map((borough) => (
                         <SelectItem key={borough} value={borough}>
                           {borough}

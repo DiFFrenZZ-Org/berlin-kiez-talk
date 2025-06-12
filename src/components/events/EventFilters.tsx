@@ -44,6 +44,9 @@ export const EventFilters = ({
           <SelectValue placeholder="Select Berlin area" />
         </SelectTrigger>
         <SelectContent>
+          <SelectItem value="__placeholder" disabled>
+            Select Berlin area
+          </SelectItem>
           <SelectItem value="all_areas">All areas</SelectItem>
           {availableAreas.map(area => (
             <SelectItem key={area} value={area}>{area}</SelectItem>
