@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ChatInterface } from '../ChatInterface';
 
 vi.mock('@/hooks/useChatRooms', () => ({
@@ -27,7 +28,12 @@ const userProfile = {
 
 describe('ChatInterface', () => {
   it('renders placeholder when no chat is active', () => {
-    render(<ChatInterface userProfile={userProfile as any} />);
+    const queryClient = new QueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ChatInterface userProfile={userProfile as any} />
+      </QueryClientProvider>
+    );
     expect(screen.getByText('Welcome to KiezTalk')).toBeInTheDocument();
   });
 });
