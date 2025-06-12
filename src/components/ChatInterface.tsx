@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { Send, Plus, Shield, Paperclip, Smile, MoreHorizontal, Search, Trash, Archive } from "lucide-react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
@@ -49,8 +50,6 @@ interface ChatMessage {
   reply_to?: string | null;
   reactions?: any;
   attachments?: any[];
-  priority?: 'normal' | 'low' | 'urgent';
-  status?: 'unread' | 'read' | 'archived';
 }
 
 export const ChatInterface = ({
@@ -105,55 +104,79 @@ export const ChatInterface = ({
   }, [activeChat]);
 
   const fetchChats = async () => {
-    const { data, error } = await supabase
-      .from('chat_rooms')
-      .select('*')
-      .order('last_message_at', { ascending: false });
+    try {
+      console.log('Fetching chat rooms...');
+      const { data, error } = await supabase
+        .from('chat_rooms')
+        .select('*')
+        .order('last_message_at', { ascending: false });
 
-    if (error) {
-      console.error('fetchChats error', error);
+      if (error) {
+        console.error('fetchChats error:', error);
+        toast({
+          title: 'Error',
+          description: 'Could not load chat rooms',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      console.log('Chat rooms fetched successfully:', data?.length || 0);
+      if (data) {
+        setChats(data);
+      }
+    } catch (err) {
+      console.error('fetchChats unexpected error:', err);
       toast({
         title: 'Error',
-        description: 'Could not load chat rooms',
+        description: 'Unexpected error loading chat rooms',
         variant: 'destructive',
       });
-      return;
-    }
-
-    if (data) {
-      setChats(data);
     }
   };
 
   const fetchMessages = async (roomId: string) => {
-    const { data, error } = await supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('room_id', roomId)
-      .order('created_at');
+    try {
+      console.log('Fetching messages for room:', roomId);
+      const { data, error } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('room_id', roomId)
+        .order('created_at');
 
-    if (error) {
-      console.error('fetchMessages error', error);
+      if (error) {
+        console.error('fetchMessages error:', error);
+        toast({
+          title: 'Error',
+          description: 'Could not load messages',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      console.log('Messages fetched successfully:', data?.length || 0);
+      if (data) {
+        setMessages(data);
+      }
+    } catch (err) {
+      console.error('fetchMessages unexpected error:', err);
       toast({
         title: 'Error',
-        description: 'Could not load messages',
+        description: 'Unexpected error loading messages',
         variant: 'destructive',
       });
-      return;
-    }
-
-    if (data) {
-      setMessages(data);
     }
   };
 
   const subscribeToRoom = (roomId: string) => {
+    console.log('Subscribing to room:', roomId);
     const channel = supabase
       .channel(`room-${roomId}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `room_id=eq.${roomId}` },
         (payload) => {
+          console.log('New message received:', payload);
           setMessages((m) => [...m, payload.new as ChatMessage]);
         }
       )
@@ -164,96 +187,114 @@ export const ChatInterface = ({
   const sendMessage = async () => {
     if (!message.trim() || !activeChat) return;
     
-    const result = await sendChatMessage({
-      roomId: activeChat,
-      userId: userProfile.id,
-      content: message,
-      isAnonymous: sendAnon,
-    });
+    try {
+      console.log('Sending message...', { roomId: activeChat, isAnonymous: sendAnon });
+      const result = await sendChatMessage({
+        roomId: activeChat,
+        userId: userProfile.id,
+        content: message,
+        isAnonymous: sendAnon,
+      });
 
-    if (!result.error) {
-      setMessage('');
-    } else {
-      console.error('sendMessage error', result.error);
+      if (!result.error) {
+        console.log('Message sent successfully');
+        setMessage('');
+      } else {
+        console.error('sendMessage error:', result.error);
+        toast({
+          title: 'Error',
+          description: 'Could not send message',
+          variant: 'destructive',
+        });
+      }
+    } catch (err) {
+      console.error('sendMessage unexpected error:', err);
+      toast({
+        title: 'Error',
+        description: 'Unexpected error sending message',
+        variant: 'destructive',
+      });
     }
   };
 
   const deleteMessage = async (messageId: string) => {
-    const { error } = await supabase
-      .from('chat_messages')
-      .delete()
-      .eq('id', messageId)
-      .eq('sender_id', userProfile.id); // Only allow deleting own messages
+    try {
+      console.log('Deleting message:', messageId);
+      const { error } = await supabase
+        .from('chat_messages')
+        .delete()
+        .eq('id', messageId)
+        .eq('sender_id', userProfile.id); // Only allow deleting own messages
 
-    if (!error) {
-      setMessages(messages.filter(m => m.id !== messageId));
-      toast({
-        title: "Message deleted",
-        description: "Your message has been deleted.",
-      });
-    } else {
+      if (!error) {
+        console.log('Message deleted successfully');
+        setMessages(messages.filter(m => m.id !== messageId));
+        toast({
+          title: "Message deleted",
+          description: "Your message has been deleted.",
+        });
+      } else {
+        console.error('deleteMessage error:', error);
+        toast({
+          title: "Error",
+          description: "Could not delete message.",
+          variant: "destructive",
+        });
+      }
+    } catch (err) {
+      console.error('deleteMessage unexpected error:', err);
       toast({
         title: "Error",
-        description: "Could not delete message.",
+        description: "Unexpected error deleting message.",
         variant: "destructive",
       });
     }
   };
 
   const deleteRoom = async (roomId: string) => {
-    const room = chats.find(c => c.id === roomId);
-    const canDelete = room?.created_by === userProfile.id || userProfile.user_role === 'super_admin';
-    
-    if (!canDelete) {
-      toast({
-        title: "Permission denied",
-        description: "You can only delete rooms you created.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const { error } = await supabase
-      .from('chat_rooms')
-      .delete()
-      .eq('id', roomId);
-
-    if (!error) {
-      setChats(chats.filter(c => c.id !== roomId));
-      if (activeChat === roomId) {
-        setActiveChat(null);
+    try {
+      const room = chats.find(c => c.id === roomId);
+      const canDelete = room?.created_by === userProfile.id || userProfile.user_role === 'super_admin';
+      
+      if (!canDelete) {
+        toast({
+          title: "Permission denied",
+          description: "You can only delete rooms you created.",
+          variant: "destructive",
+        });
+        return;
       }
-      toast({
-        title: "Room deleted",
-        description: "Chat room has been deleted.",
-      });
-    } else {
+
+      console.log('Deleting room:', roomId);
+      const { error } = await supabase
+        .from('chat_rooms')
+        .delete()
+        .eq('id', roomId);
+
+      if (!error) {
+        console.log('Room deleted successfully');
+        setChats(chats.filter(c => c.id !== roomId));
+        if (activeChat === roomId) {
+          setActiveChat(null);
+        }
+        toast({
+          title: "Room deleted",
+          description: "Chat room has been deleted.",
+        });
+      } else {
+        console.error('deleteRoom error:', error);
+        toast({
+          title: "Error",
+          description: "Could not delete room.",
+          variant: "destructive",
+        });
+      }
+    } catch (err) {
+      console.error('deleteRoom unexpected error:', err);
       toast({
         title: "Error",
-        description: "Could not delete room.",
+        description: "Unexpected error deleting room.",
         variant: "destructive",
-      });
-    }
-  };
-
-  const classifyMessage = async (messageId: string, status: 'unread' | 'read' | 'archived', priority?: 'normal' | 'low' | 'urgent') => {
-    const { error } = await supabase
-      .from('chat_messages')
-      .update({ 
-        status,
-        ...(priority && { priority })
-      })
-      .eq('id', messageId);
-
-    if (!error) {
-      setMessages(messages.map(m => 
-        m.id === messageId 
-          ? { ...m, status, ...(priority && { priority }) }
-          : m
-      ));
-      toast({
-        title: "Message updated",
-        description: `Message marked as ${status}${priority ? ` with ${priority} priority` : ''}.`,
       });
     }
   };
@@ -261,37 +302,59 @@ export const ChatInterface = ({
   const createRoom = async () => {
     if (!newRoomName.trim()) return;
 
-    const insertData: any = {
-      name: newRoomName,
-      description: newRoomDesc,
-      created_by: userProfile.id,
-      is_temporary: isTemporary,
-      room_type: roomType,
-      is_encrypted: true,
-    };
+    try {
+      console.log('Creating new room...', { name: newRoomName, type: roomType });
+      const insertData: any = {
+        name: newRoomName,
+        description: newRoomDesc,
+        created_by: userProfile.id,
+        is_temporary: isTemporary,
+        room_type: roomType,
+        is_encrypted: true,
+      };
 
-    if (isTemporary) {
-      const hours = parseInt(expiry, 10);
-      insertData.expires_at = new Date(Date.now() + hours * 3600 * 1000).toISOString();
-    }
+      if (isTemporary) {
+        const hours = parseInt(expiry, 10);
+        insertData.expires_at = new Date(Date.now() + hours * 3600 * 1000).toISOString();
+      }
 
-    const { data, error } = await supabase
-      .from('chat_rooms')
-      .insert(insertData)
-      .select()
-      .single();
+      const { data, error } = await supabase
+        .from('chat_rooms')
+        .insert(insertData)
+        .select()
+        .single();
 
-    if (!error && data) {
-      await supabase.from('chat_participants').insert({
-        room_id: data.id,
-        user_id: userProfile.id,
-        is_admin: true,
+      if (!error && data) {
+        console.log('Room created successfully:', data.id);
+        await supabase.from('chat_participants').insert({
+          room_id: data.id,
+          user_id: userProfile.id,
+          is_admin: true,
+        });
+        setChats(prev => [data, ...prev]);
+        setOpenCreate(false);
+        setNewRoomName('');
+        setNewRoomDesc('');
+        setIsTemporary(false);
+        toast({
+          title: "Room created",
+          description: "New chat room has been created.",
+        });
+      } else {
+        console.error('createRoom error:', error);
+        toast({
+          title: "Error",
+          description: "Could not create room.",
+          variant: "destructive",
+        });
+      }
+    } catch (err) {
+      console.error('createRoom unexpected error:', err);
+      toast({
+        title: "Error",
+        description: "Unexpected error creating room.",
+        variant: "destructive",
       });
-      setChats(prev => [data, ...prev]);
-      setOpenCreate(false);
-      setNewRoomName('');
-      setNewRoomDesc('');
-      setIsTemporary(false);
     }
   };
 
@@ -300,22 +363,6 @@ export const ChatInterface = ({
   );
 
   const activeRoom = chats.find(c => c.id === activeChat);
-
-  const getPriorityColor = (priority?: string) => {
-    switch (priority) {
-      case 'urgent': return 'text-red-400';
-      case 'low': return 'text-gray-400';
-      default: return 'text-white';
-    }
-  };
-
-  const getStatusBadge = (status?: string) => {
-    switch (status) {
-      case 'unread': return <Badge variant="outline" className="text-xs bg-blue-600/20">Unread</Badge>;
-      case 'archived': return <Badge variant="outline" className="text-xs bg-gray-600/20">Archived</Badge>;
-      default: return null;
-    }
-  };
 
   return (
     <div className="flex h-[calc(100vh-120px)] bg-slate-900/50 backdrop-blur-md rounded-lg border border-white/20 overflow-hidden">
@@ -517,7 +564,7 @@ export const ChatInterface = ({
                             isOwn 
                               ? 'bg-blue-600 text-white rounded-br-sm' 
                               : 'bg-slate-700 text-white rounded-bl-sm'
-                          } ${getPriorityColor(msg.priority)}`}
+                          }`}
                         >
                           <div className="flex items-start justify-between">
                             <p className="text-sm whitespace-pre-wrap flex-1">{msg.content}</p>
@@ -546,33 +593,24 @@ export const ChatInterface = ({
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent>
-                                  <DropdownMenuItem onClick={() => classifyMessage(msg.id, 'unread')}>
-                                    Mark as Unread
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => classifyMessage(msg.id, 'archived')}>
+                                  <DropdownMenuItem>Mark as Unread</DropdownMenuItem>
+                                  <DropdownMenuItem>
                                     <Archive className="h-4 w-4 mr-2" />
                                     Archive
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => classifyMessage(msg.id, 'read', 'urgent')}>
-                                    Mark as Urgent
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => classifyMessage(msg.id, 'read', 'low')}>
-                                    Mark as Low Priority
-                                  </DropdownMenuItem>
+                                  <DropdownMenuItem>Mark as Urgent</DropdownMenuItem>
+                                  <DropdownMenuItem>Mark as Low Priority</DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </div>
                           </div>
                           
-                          <div className="flex items-center justify-between mt-1">
-                            <p className="text-xs opacity-70">
-                              {new Date(msg.created_at).toLocaleTimeString([], { 
-                                hour: '2-digit', 
-                                minute: '2-digit' 
-                              })}
-                            </p>
-                            {getStatusBadge(msg.status)}
-                          </div>
+                          <p className="text-xs opacity-70 mt-1">
+                            {new Date(msg.created_at).toLocaleTimeString([], { 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })}
+                          </p>
                         </div>
                       </div>
                     </div>
