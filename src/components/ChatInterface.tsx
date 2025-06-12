@@ -520,7 +520,10 @@ export const ChatInterface = ({
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div
+              className="flex-1 overflow-y-auto p-4 space-y-4"
+              aria-live="polite"
+            >
               {messages.length === 0 ? (
                 <div className="flex-1 flex items-center justify-center text-gray-400">
                   <div className="text-center">
