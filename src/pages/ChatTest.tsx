@@ -1,7 +1,11 @@
-import { useState } from 'react';
-import { ChatInterface } from '@/components/ChatInterface';
+import { useState, Suspense, lazy } from 'react';
 import { useAuth, UserProfile } from '@/hooks/useAuth';
 import { Switch } from '@/components/ui/switch';
+import { Skeleton } from '@/components/ui/skeleton';
+
+const ChatInterface = lazy(() =>
+  import('@/components/ChatInterface').then((m) => ({ default: m.ChatInterface }))
+);
 
 const ChatTest = () => {
   const { profile } = useAuth();
@@ -27,7 +31,19 @@ const ChatTest = () => {
         <Switch id="anon-toggle" checked={sendAnon} onCheckedChange={setSendAnon} />
         <label htmlFor="anon-toggle">Anonymous</label>
       </div>
-      <ChatInterface userProfile={userProfile} sendAnon={sendAnon} setSendAnon={setSendAnon} />
+      <Suspense
+        fallback={
+          <div className="p-4">
+            <Skeleton className="h-64 w-full" />
+          </div>
+        }
+      >
+        <ChatInterface
+          userProfile={userProfile}
+          sendAnon={sendAnon}
+          setSendAnon={setSendAnon}
+        />
+      </Suspense>
     </div>
   );
 };
