@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useRef } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Send, Plus, Shield, Paperclip, Smile, MoreHorizontal, Search, Trash, Archive } from "lucide-react";
-import type { RealtimeChannel } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,8 @@ import { UserProfile } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { sendChatMessage } from "@/services/sendChatMessage";
+import { useChatRooms, ChatRoom } from "@/hooks/useChatRooms";
+import { useRoomMessages, ChatMessage } from "@/hooks/useRoomMessages";
 
 interface ChatInterfaceProps {
   userProfile: UserProfile;
@@ -22,35 +24,6 @@ interface ChatInterfaceProps {
   setSendAnon?: (v: boolean) => void;
 }
 
-interface ChatRoom {
-  id: string;
-  name: string;
-  description?: string | null;
-  lastMessage?: string | null;
-  last_message_at?: string | null;
-  last_message_content?: string | null;
-  unread?: number;
-  expires_at?: string | null;
-  room_type?: string | null;
-  avatar_url?: string | null;
-  is_encrypted?: boolean | null;
-  bridge_type?: string | null;
-  participant_count?: number | null;
-  created_by?: string | null;
-}
-
-interface ChatMessage {
-  id: string;
-  room_id: string;
-  sender_id: string;
-  content: string;
-  created_at: string;
-  is_anonymous?: boolean | null;
-  anonymous_name?: string | null;
-  reply_to?: string | null;
-  reactions?: any;
-  attachments?: any[];
-}
 
 export const ChatInterface = ({
   userProfile,
@@ -59,8 +32,8 @@ export const ChatInterface = ({
 }: ChatInterfaceProps) => {
   const [message, setMessage] = useState('');
   const [activeChat, setActiveChat] = useState<string | null>(null);
-  const [chats, setChats] = useState<ChatRoom[]>([]);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const { data: chats = [], refetch: refetchRooms } = useChatRooms();
+  const { data: messages = [], refetch: refetchMessages } = useRoomMessages(activeChat);
   const [openCreate, setOpenCreate] = useState(false);
   const [newRoomName, setNewRoomName] = useState('');
   const [newRoomDesc, setNewRoomDesc] = useState('');
@@ -71,7 +44,6 @@ export const ChatInterface = ({
   const [searchQuery, setSearchQuery] = useState('');
   const sendAnon = controlledSendAnon ?? internalSendAnon;
   const setSendAnon = controlledSetSendAnon ?? setInternalSendAnon;
-  const [channel, setChannel] = useState<RealtimeChannel | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -83,138 +55,58 @@ export const ChatInterface = ({
     scrollToBottom();
   }, [messages]);
 
+  // refetch rooms when component mounts to ensure fresh data
   useEffect(() => {
-    fetchChats();
-  }, []);
+    refetchRooms();
+  }, [refetchRooms]);
 
-  useEffect(() => {
-    if (activeChat) {
-      fetchMessages(activeChat);
-      const ch = subscribeToRoom(activeChat);
-      setChannel(ch);
-    } else {
-      setMessages([]);
-    }
-    return () => {
-      if (channel) {
-        supabase.removeChannel(channel);
-        setChannel(null);
-      }
-    };
-  }, [activeChat]);
+  // old data fetching handled by React Query hooks now
 
-  const fetchChats = async () => {
-    try {
-      console.log('Fetching chat rooms...');
-      const { data, error } = await supabase
-        .from('chat_rooms')
-        .select('*')
-        .order('last_message_at', { ascending: false });
+  const queryClient = useQueryClient();
 
-      if (error) {
-        console.error('fetchChats error:', error);
-        toast({
-          title: 'Error',
-          description: 'Could not load chat rooms',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      console.log('Chat rooms fetched successfully:', data?.length || 0);
-      if (data) {
-        setChats(data);
-      }
-    } catch (err) {
-      console.error('fetchChats unexpected error:', err);
-      toast({
-        title: 'Error',
-        description: 'Unexpected error loading chat rooms',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const fetchMessages = async (roomId: string) => {
-    try {
-      console.log('Fetching messages for room:', roomId);
-      const { data, error } = await supabase
-        .from('chat_messages')
-        .select('*')
-        .eq('room_id', roomId)
-        .order('created_at');
-
-      if (error) {
-        console.error('fetchMessages error:', error);
-        toast({
-          title: 'Error',
-          description: 'Could not load messages',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      console.log('Messages fetched successfully:', data?.length || 0);
-      if (data) {
-        setMessages(data);
-      }
-    } catch (err) {
-      console.error('fetchMessages unexpected error:', err);
-      toast({
-        title: 'Error',
-        description: 'Unexpected error loading messages',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const subscribeToRoom = (roomId: string) => {
-    console.log('Subscribing to room:', roomId);
-    const channel = supabase
-      .channel(`room-${roomId}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `room_id=eq.${roomId}` },
-        (payload) => {
-          console.log('New message received:', payload);
-          setMessages((m) => [...m, payload.new as ChatMessage]);
-        }
-      )
-      .subscribe();
-    return channel;
-  };
-
-  const sendMessage = async () => {
-    if (!message.trim() || !activeChat) return;
-    
-    try {
-      console.log('Sending message...', { roomId: activeChat, isAnonymous: sendAnon });
-      const result = await sendChatMessage({
+  const sendMessageMutation = useMutation({
+    mutationFn: async (content: string) => {
+      if (!activeChat) throw new Error('No active chat');
+      return sendChatMessage({
         roomId: activeChat,
         userId: userProfile.id,
-        content: message,
+        content,
         isAnonymous: sendAnon,
       });
+    },
+    onMutate: async (content: string) => {
+      if (!activeChat) return { previous: [] as ChatMessage[] };
+      await queryClient.cancelQueries({ queryKey: ['rooms', activeChat, 'messages'] });
+      const previous = queryClient.getQueryData<ChatMessage[]>(['rooms', activeChat, 'messages']) || [];
 
-      if (!result.error) {
-        console.log('Message sent successfully');
-        setMessage('');
-      } else {
-        console.error('sendMessage error:', result.error);
-        toast({
-          title: 'Error',
-          description: 'Could not send message',
-          variant: 'destructive',
-        });
+      const optimistic: ChatMessage = {
+        id: `temp-${Date.now()}`,
+        room_id: activeChat,
+        sender_id: userProfile.id,
+        content,
+        created_at: new Date().toISOString(),
+        is_anonymous: sendAnon,
+        anonymous_name: sendAnon ? 'Anonymous' : null,
+      };
+
+      queryClient.setQueryData<ChatMessage[]>(['rooms', activeChat, 'messages'], [...previous, optimistic]);
+      setMessage('');
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (activeChat) {
+        queryClient.setQueryData(['rooms', activeChat, 'messages'], context?.previous || []);
       }
-    } catch (err) {
-      console.error('sendMessage unexpected error:', err);
-      toast({
-        title: 'Error',
-        description: 'Unexpected error sending message',
-        variant: 'destructive',
-      });
-    }
+      toast({ title: 'Error', description: 'Could not send message', variant: 'destructive' });
+    },
+    onSettled: () => {
+      if (activeChat) queryClient.invalidateQueries({ queryKey: ['rooms', activeChat, 'messages'] });
+    },
+  });
+
+  const sendMessage = () => {
+    if (!message.trim()) return;
+    sendMessageMutation.mutate(message);
   };
 
   const deleteMessage = async (messageId: string) => {
@@ -224,11 +116,16 @@ export const ChatInterface = ({
         .from('chat_messages')
         .delete()
         .eq('id', messageId)
-        .eq('sender_id', userProfile.id); // Only allow deleting own messages
+        .eq('sender_id', userProfile.id);
 
       if (!error) {
         console.log('Message deleted successfully');
-        setMessages(messages.filter(m => m.id !== messageId));
+        if (activeChat) {
+          queryClient.setQueryData<ChatMessage[]>(
+            ['rooms', activeChat, 'messages'],
+            (old = []) => old.filter(m => m.id !== messageId)
+          );
+        }
         toast({
           title: "Message deleted",
           description: "Your message has been deleted.",
@@ -273,7 +170,7 @@ export const ChatInterface = ({
 
       if (!error) {
         console.log('Room deleted successfully');
-        setChats(chats.filter(c => c.id !== roomId));
+        queryClient.setQueryData<ChatRoom[]>(['rooms'], (old = []) => old.filter(c => c.id !== roomId));
         if (activeChat === roomId) {
           setActiveChat(null);
         }
@@ -331,7 +228,7 @@ export const ChatInterface = ({
           user_id: userProfile.id,
           is_admin: true,
         });
-        setChats(prev => [data, ...prev]);
+        queryClient.setQueryData<ChatRoom[]>(['rooms'], (old = []) => [data, ...(old || [])]);
         setOpenCreate(false);
         setNewRoomName('');
         setNewRoomDesc('');
