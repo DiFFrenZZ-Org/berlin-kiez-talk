@@ -11,7 +11,7 @@ import { Calendar as CalendarIcon, MapPin } from "lucide-react";
 
 export const EnhancedEventsCalendar = () => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const { data: events = [] } = useEvents();
+  const { events, loading, selectedEvent, setSelectedEvent } = useEvents();
   
   // Get events for the selected date
   const getEventsForDate = (date: Date | undefined): StandardizedEvent[] => {
@@ -167,7 +167,12 @@ export const EnhancedEventsCalendar = () => {
 
         {/* Upcoming Events - 4 columns */}
         <div className="lg:col-span-4 overflow-hidden">
-          <UpcomingEvents />
+          <UpcomingEvents 
+            events={events}
+            selectedEvent={selectedEvent}
+            onEventSelect={setSelectedEvent}
+            loading={loading}
+          />
         </div>
       </div>
 
@@ -215,12 +220,20 @@ export const EnhancedEventsCalendar = () => {
 
         {/* Events for Selected Date */}
         <EventsList 
-          selectedDate={selectedDate} 
-          title={selectedDate ? `Events for ${selectedDate.toLocaleDateString()}` : 'Select a Date'}
+          events={eventsForSelectedDate}
+          selectedEvent={selectedEvent}
+          onEventSelect={setSelectedEvent}
+          selectedDate={selectedDate}
+          loading={loading}
         />
 
         {/* Upcoming Events */}
-        <UpcomingEvents />
+        <UpcomingEvents 
+          events={events}
+          selectedEvent={selectedEvent}
+          onEventSelect={setSelectedEvent}
+          loading={loading}
+        />
       </div>
     </div>
   );

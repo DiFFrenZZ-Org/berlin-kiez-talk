@@ -12,7 +12,7 @@ interface UpcomingEventsProps {
 }
 
 export const UpcomingEvents = ({ 
-  events, 
+  events = [], 
   selectedEvent, 
   onEventSelect, 
   loading 
@@ -23,6 +23,7 @@ export const UpcomingEvents = ({
   nextWeek.setDate(today.getDate() + 7);
   
   const upcomingEvents = events.filter(event => {
+    if (!event.event_date) return false;
     const eventDate = new Date(event.event_date);
     return eventDate >= today && eventDate <= nextWeek;
   }).slice(0, 5); // Show max 5 upcoming events

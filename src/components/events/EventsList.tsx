@@ -13,7 +13,7 @@ interface EventsListProps {
 }
 
 export const EventsList = ({ 
-  events, 
+  events = [], 
   selectedEvent, 
   onEventSelect, 
   selectedDate, 

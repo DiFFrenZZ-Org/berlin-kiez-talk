@@ -1,6 +1,5 @@
-
 import { useState, useEffect, useRef } from "react";
-import { Send, Plus, Shield, Paperclip, Smile, MoreHorizontal, Search } from "lucide-react";
+import { Send, Plus, Shield, Paperclip, Smile, MoreHorizontal, Search, Trash, Archive } from "lucide-react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { UserProfile } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -35,6 +35,7 @@ interface ChatRoom {
   is_encrypted?: boolean | null;
   bridge_type?: string | null;
   participant_count?: number | null;
+  created_by?: string | null;
 }
 
 interface ChatMessage {
@@ -48,6 +49,8 @@ interface ChatMessage {
   reply_to?: string | null;
   reactions?: any;
   attachments?: any[];
+  priority?: 'normal' | 'low' | 'urgent';
+  status?: 'unread' | 'read' | 'archived';
 }
 
 export const ChatInterface = ({
@@ -175,6 +178,86 @@ export const ChatInterface = ({
     }
   };
 
+  const deleteMessage = async (messageId: string) => {
+    const { error } = await supabase
+      .from('chat_messages')
+      .delete()
+      .eq('id', messageId)
+      .eq('sender_id', userProfile.id); // Only allow deleting own messages
+
+    if (!error) {
+      setMessages(messages.filter(m => m.id !== messageId));
+      toast({
+        title: "Message deleted",
+        description: "Your message has been deleted.",
+      });
+    } else {
+      toast({
+        title: "Error",
+        description: "Could not delete message.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const deleteRoom = async (roomId: string) => {
+    const room = chats.find(c => c.id === roomId);
+    const canDelete = room?.created_by === userProfile.id || userProfile.user_role === 'super_admin';
+    
+    if (!canDelete) {
+      toast({
+        title: "Permission denied",
+        description: "You can only delete rooms you created.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { error } = await supabase
+      .from('chat_rooms')
+      .delete()
+      .eq('id', roomId);
+
+    if (!error) {
+      setChats(chats.filter(c => c.id !== roomId));
+      if (activeChat === roomId) {
+        setActiveChat(null);
+      }
+      toast({
+        title: "Room deleted",
+        description: "Chat room has been deleted.",
+      });
+    } else {
+      toast({
+        title: "Error",
+        description: "Could not delete room.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const classifyMessage = async (messageId: string, status: 'unread' | 'read' | 'archived', priority?: 'normal' | 'low' | 'urgent') => {
+    const { error } = await supabase
+      .from('chat_messages')
+      .update({ 
+        status,
+        ...(priority && { priority })
+      })
+      .eq('id', messageId);
+
+    if (!error) {
+      setMessages(messages.map(m => 
+        m.id === messageId 
+          ? { ...m, status, ...(priority && { priority }) }
+          : m
+      ));
+      toast({
+        title: "Message updated",
+        description: `Message marked as ${status}${priority ? ` with ${priority} priority` : ''}.`,
+      });
+    }
+  };
+
   const createRoom = async () => {
     if (!newRoomName.trim()) return;
 
@@ -218,6 +301,22 @@ export const ChatInterface = ({
 
   const activeRoom = chats.find(c => c.id === activeChat);
 
+  const getPriorityColor = (priority?: string) => {
+    switch (priority) {
+      case 'urgent': return 'text-red-400';
+      case 'low': return 'text-gray-400';
+      default: return 'text-white';
+    }
+  };
+
+  const getStatusBadge = (status?: string) => {
+    switch (status) {
+      case 'unread': return <Badge variant="outline" className="text-xs bg-blue-600/20">Unread</Badge>;
+      case 'archived': return <Badge variant="outline" className="text-xs bg-gray-600/20">Archived</Badge>;
+      default: return null;
+    }
+  };
+
   return (
     <div className="flex h-[calc(100vh-120px)] bg-slate-900/50 backdrop-blur-md rounded-lg border border-white/20 overflow-hidden">
       {/* Sidebar - Chat List */}
@@ -257,8 +356,7 @@ export const ChatInterface = ({
             filteredChats.map((chat) => (
               <div
                 key={chat.id}
-                onClick={() => setActiveChat(chat.id)}
-                className={`p-4 cursor-pointer border-b border-white/10 hover:bg-slate-700/30 transition-colors ${
+                className={`p-4 cursor-pointer border-b border-white/10 hover:bg-slate-700/30 transition-colors group ${
                   activeChat === chat.id ? 'bg-blue-600/20 border-r-2 border-r-blue-500' : ''
                 }`}
               >
@@ -270,7 +368,7 @@ export const ChatInterface = ({
                     </AvatarFallback>
                   </Avatar>
                   
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0" onClick={() => setActiveChat(chat.id)}>
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center space-x-2">
                         <span className="font-medium text-white text-sm truncate">{chat.name}</span>
@@ -281,14 +379,41 @@ export const ChatInterface = ({
                           </Badge>
                         )}
                       </div>
-                      {chat.last_message_at && (
-                        <span className="text-xs text-gray-400">
-                          {new Date(chat.last_message_at).toLocaleTimeString([], { 
-                            hour: '2-digit', 
-                            minute: '2-digit' 
-                          })}
-                        </span>
-                      )}
+                      <div className="flex items-center space-x-1">
+                        {chat.last_message_at && (
+                          <span className="text-xs text-gray-400">
+                            {new Date(chat.last_message_at).toLocaleTimeString([], { 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })}
+                          </span>
+                        )}
+                        {(chat.created_by === userProfile.id || userProfile.user_role === 'super_admin') && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="opacity-0 group-hover:opacity-100 h-6 w-6 p-0 text-gray-400 hover:text-red-400"
+                              >
+                                <Trash className="h-3 w-3" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                              <DropdownMenuItem 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteRoom(chat.id);
+                                }}
+                                className="text-red-400"
+                              >
+                                <Trash className="h-4 w-4 mr-2" />
+                                Delete Room
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
+                      </div>
                     </div>
                     
                     {chat.last_message_content && (
@@ -370,7 +495,7 @@ export const ChatInterface = ({
                       key={msg.id}
                       className={`flex ${isOwn ? 'justify-end' : 'justify-start'} ${
                         index > 0 && messages[index - 1].sender_id === msg.sender_id ? 'mt-1' : 'mt-4'
-                      }`}
+                      } group`}
                     >
                       {!isOwn && showAvatar && (
                         <Avatar className="h-6 w-6 mr-2 mt-1">
@@ -382,7 +507,7 @@ export const ChatInterface = ({
                       
                       {!isOwn && !showAvatar && <div className="w-8" />}
                       
-                      <div className={`max-w-xs lg:max-w-md ${isOwn ? 'ml-auto' : ''}`}>
+                      <div className={`max-w-xs lg:max-w-md ${isOwn ? 'ml-auto' : ''} relative`}>
                         {showAvatar && !isOwn && (
                           <p className="text-xs font-medium text-gray-300 mb-1 ml-1">{displayName}</p>
                         )}
@@ -392,15 +517,62 @@ export const ChatInterface = ({
                             isOwn 
                               ? 'bg-blue-600 text-white rounded-br-sm' 
                               : 'bg-slate-700 text-white rounded-bl-sm'
-                          }`}
+                          } ${getPriorityColor(msg.priority)}`}
                         >
-                          <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                          <p className="text-xs opacity-70 mt-1">
-                            {new Date(msg.created_at).toLocaleTimeString([], { 
-                              hour: '2-digit', 
-                              minute: '2-digit' 
-                            })}
-                          </p>
+                          <div className="flex items-start justify-between">
+                            <p className="text-sm whitespace-pre-wrap flex-1">{msg.content}</p>
+                            
+                            {/* Message Actions */}
+                            <div className="flex items-center space-x-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              {isOwn && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => deleteMessage(msg.id)}
+                                  className="h-6 w-6 p-0 text-red-400 hover:text-red-300"
+                                >
+                                  <Trash className="h-3 w-3" />
+                                </Button>
+                              )}
+                              
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 w-6 p-0 text-gray-400 hover:text-white"
+                                  >
+                                    <MoreHorizontal className="h-3 w-3" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent>
+                                  <DropdownMenuItem onClick={() => classifyMessage(msg.id, 'unread')}>
+                                    Mark as Unread
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => classifyMessage(msg.id, 'archived')}>
+                                    <Archive className="h-4 w-4 mr-2" />
+                                    Archive
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => classifyMessage(msg.id, 'read', 'urgent')}>
+                                    Mark as Urgent
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => classifyMessage(msg.id, 'read', 'low')}>
+                                    Mark as Low Priority
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center justify-between mt-1">
+                            <p className="text-xs opacity-70">
+                              {new Date(msg.created_at).toLocaleTimeString([], { 
+                                hour: '2-digit', 
+                                minute: '2-digit' 
+                              })}
+                            </p>
+                            {getStatusBadge(msg.status)}
+                          </div>
                         </div>
                       </div>
                     </div>
