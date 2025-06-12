@@ -1,5 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import type { PostgrestSingleResponse } from '@supabase/supabase-js';
+import type { Database } from '@/integrations/supabase/types';
 
 interface SendChatMessageParams {
   roomId: string;
@@ -13,7 +15,9 @@ export async function sendChatMessage({
   userId,
   content,
   isAnonymous,
-}: SendChatMessageParams) {
+}: SendChatMessageParams): Promise<
+  PostgrestSingleResponse<Database['public']['Tables']['chat_messages']['Row']>
+> {
   let anonymousName: string | null = null;
 
   // Generate anonymous name if needed
@@ -22,13 +26,17 @@ export async function sendChatMessage({
     anonymousName = data as string;
   }
 
-  const response = await supabase.from('chat_messages').insert({
-    room_id: roomId,
-    sender_id: userId,
-    content,
-    is_anonymous: isAnonymous,
-    anonymous_name: anonymousName,
-  });
+  const response = await supabase
+    .from('chat_messages')
+    .insert({
+      room_id: roomId,
+      sender_id: userId,
+      content,
+      is_anonymous: isAnonymous,
+      anonymous_name: anonymousName,
+    })
+    .select()
+    .single();
 
   // Handle RLS violation errors
   if (response.error) {
