@@ -18,8 +18,8 @@ interface Props {
 export const NewPostDialog = ({ open, onOpenChange, categories, onCreated, userProfile }: Props) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [category, setCategory] = useState<string>('');
-  const [type, setType] = useState<'offering' | 'searching' | 'discussion'>('discussion');
+  const [category, setCategory] = useState<string>('__placeholder');
+  const [type, setType] = useState<'__placeholder' | 'offering' | 'searching' | 'discussion'>('__placeholder');
 
   const createPost = async () => {
     if (!title.trim() || !content.trim()) return;
@@ -52,6 +52,9 @@ export const NewPostDialog = ({ open, onOpenChange, categories, onCreated, userP
               <SelectValue placeholder="Kategorie" />
             </SelectTrigger>
             <SelectContent className="bg-slate-800 text-white">
+              <SelectItem value="__placeholder" disabled>
+                Kategorie
+              </SelectItem>
               <SelectItem value="">Keine</SelectItem>
               {categories.map((c) => (
                 <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
@@ -63,6 +66,9 @@ export const NewPostDialog = ({ open, onOpenChange, categories, onCreated, userP
               <SelectValue placeholder="Typ" />
             </SelectTrigger>
             <SelectContent className="bg-slate-800 text-white">
+              <SelectItem value="__placeholder" disabled>
+                Typ
+              </SelectItem>
               <SelectItem value="offering">Bieten</SelectItem>
               <SelectItem value="searching">Suchen</SelectItem>
               <SelectItem value="discussion">Diskussion</SelectItem>

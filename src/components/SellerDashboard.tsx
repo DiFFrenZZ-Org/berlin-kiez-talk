@@ -16,7 +16,7 @@ export const SellerDashboard = ({ userProfile }: SellerDashboardProps) => {
   const [views, setViews] = useState(0);
   const [reviews, setReviews] = useState(0);
   const [activeChats, setActiveChats] = useState(0);
-  const [tier, setTier] = useState<UserProfile["subscription_tier"]>(userProfile.subscription_tier);
+  const [tier, setTier] = useState<UserProfile["subscription_tier"] | "__placeholder">("__placeholder");
   const [active, setActive] = useState(userProfile.subscription_active);
   const { toast } = useToast();
 
@@ -94,6 +94,9 @@ export const SellerDashboard = ({ userProfile }: SellerDashboardProps) => {
                 <SelectValue placeholder="Tier" />
               </SelectTrigger>
               <SelectContent className="bg-slate-800 border-slate-600 text-white">
+                <SelectItem value="__placeholder" disabled>
+                  Tier
+                </SelectItem>
                 <SelectItem value="basic">basic</SelectItem>
                 <SelectItem value="pro">pro</SelectItem>
                 <SelectItem value="premium">premium</SelectItem>
