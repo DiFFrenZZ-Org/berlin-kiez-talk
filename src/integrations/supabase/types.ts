@@ -51,6 +51,94 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_messages: {
+        Row: {
+          anonymous_name: string | null
+          content: string
+          created_at: string
+          edited_at: string | null
+          id: string
+          is_anonymous: boolean
+          is_deleted: boolean
+          message_type: string | null
+          room_id: string
+          sender_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          anonymous_name?: string | null
+          content?: string
+          created_at?: string
+          edited_at?: string | null
+          id?: string
+          is_anonymous?: boolean
+          is_deleted?: boolean
+          message_type?: string | null
+          room_id: string
+          sender_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          anonymous_name?: string | null
+          content?: string
+          created_at?: string
+          edited_at?: string | null
+          id?: string
+          is_anonymous?: boolean
+          is_deleted?: boolean
+          message_type?: string | null
+          room_id?: string
+          sender_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_participants: {
+        Row: {
+          created_at: string
+          id: string
+          is_admin: boolean | null
+          joined_at: string
+          last_seen: string | null
+          room_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_admin?: boolean | null
+          joined_at?: string
+          last_seen?: string | null
+          room_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_admin?: boolean | null
+          joined_at?: string
+          last_seen?: string | null
+          room_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_participants_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: true
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_rooms: {
         Row: {
           borough: string | null
@@ -61,11 +149,11 @@ export type Database = {
           id: string
           is_private: boolean | null
           is_temporary: boolean | null
-          max_participants: number | null
           last_message_at: string | null
           last_message_content: string | null
-          participant_count: number | null
+          max_participants: number | null
           name: string
+          participant_count: number | null
         }
         Insert: {
           borough?: string | null
@@ -76,11 +164,11 @@ export type Database = {
           id?: string
           is_private?: boolean | null
           is_temporary?: boolean | null
-          max_participants?: number | null
           last_message_at?: string | null
           last_message_content?: string | null
-          participant_count?: number | null
+          max_participants?: number | null
           name: string
+          participant_count?: number | null
         }
         Update: {
           borough?: string | null
@@ -91,98 +179,13 @@ export type Database = {
           id?: string
           is_private?: boolean | null
           is_temporary?: boolean | null
-          max_participants?: number | null
           last_message_at?: string | null
           last_message_content?: string | null
-          participant_count?: number | null
+          max_participants?: number | null
           name?: string
+          participant_count?: number | null
         }
         Relationships: []
-      }
-      chat_messages: {
-        Row: {
-          id: string
-          room_id: string
-          sender_id: string | null
-          content: string
-          message_type: string | null
-          is_anonymous: boolean | null
-          anonymous_name: string | null
-          created_at: string
-          updated_at: string
-          edited_at: string | null
-          is_deleted: boolean | null
-        }
-        Insert: {
-          id?: string
-          room_id: string
-          sender_id?: string | null
-          content: string
-          message_type?: string | null
-          is_anonymous?: boolean | null
-          anonymous_name?: string | null
-          created_at?: string
-          updated_at?: string
-          edited_at?: string | null
-          is_deleted?: boolean | null
-        }
-        Update: {
-          id?: string
-          room_id?: string
-          sender_id?: string | null
-          content?: string
-          message_type?: string | null
-          is_anonymous?: boolean | null
-          anonymous_name?: string | null
-          created_at?: string
-          updated_at?: string
-          edited_at?: string | null
-          is_deleted?: boolean | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "chat_messages_room_id_fkey",
-            columns: ["room_id"],
-            isOneToOne: false,
-            referencedRelation: "chat_rooms",
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      chat_participants: {
-        Row: {
-          id: string
-          room_id: string
-          user_id: string
-          joined_at: string
-          last_seen: string | null
-          is_admin: boolean | null
-        }
-        Insert: {
-          id?: string
-          room_id: string
-          user_id: string
-          joined_at?: string
-          last_seen?: string | null
-          is_admin?: boolean | null
-        }
-        Update: {
-          id?: string
-          room_id?: string
-          user_id?: string
-          joined_at?: string
-          last_seen?: string | null
-          is_admin?: boolean | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "chat_participants_room_id_fkey",
-            columns: ["room_id"],
-            isOneToOne: false,
-            referencedRelation: "chat_rooms",
-            referencedColumns: ["id"]
-          }
-        ]
       }
       forum_categories: {
         Row: {
@@ -489,17 +492,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_anonymous_name: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       is_super_admin: {
         Args: { user_id?: string }
         Returns: boolean
-      }
-      generate_anonymous_name: {
-        Args: Record<string, never>
-        Returns: string
-      }
-      update_room_stats: {
-        Args: Record<string, never>
-        Returns: unknown
       }
     }
     Enums: {

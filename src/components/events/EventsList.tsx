@@ -2,7 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EventCard } from './EventCard';
 import { StandardizedEvent } from '@/types/events';
-import { formatEventDate } from '@/utils/eventUtils';
+import { getRelativeDateLabel } from '@/utils/dateUtils';
 
 interface EventsListProps {
   events: StandardizedEvent[];
@@ -19,16 +19,19 @@ export const EventsList = ({
   selectedDate, 
   loading 
 }: EventsListProps) => {
+  const getHeaderTitle = () => {
+    if (selectedDate) {
+      const dateStr = selectedDate.toISOString().split('T')[0];
+      return `Events (${events.length}) - ${getRelativeDateLabel(dateStr)}`;
+    }
+    return `Events (${events.length})`;
+  };
+
   return (
     <Card className="bg-white/10 backdrop-blur-md border-white/20 text-white">
       <CardHeader>
         <CardTitle className="text-lg">
-          Events ({events.length})
-          {selectedDate && (
-            <span className="text-sm font-normal text-blue-300 block">
-              {formatEventDate(selectedDate.toISOString().split('T')[0])}
-            </span>
-          )}
+          {getHeaderTitle()}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 max-h-96 overflow-y-auto">
@@ -38,7 +41,10 @@ export const EventsList = ({
           <div className="text-center text-blue-300 py-8">
             <p>No events found</p>
             <p className="text-sm mt-2 opacity-70">
-              Try adjusting your filters or selecting a different date
+              {selectedDate 
+                ? "No events scheduled for this date" 
+                : "Try adjusting your filters or selecting a different date"
+              }
             </p>
           </div>
         ) : (

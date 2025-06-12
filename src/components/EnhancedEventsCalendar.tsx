@@ -6,6 +6,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { EventFilters } from './events/EventFilters';
 import { EventsList } from './events/EventsList';
 import { EventDetails } from './events/EventDetails';
+import { UpcomingEvents } from './events/UpcomingEvents';
 import { useEvents } from '@/hooks/useEvents';
 import { useAuth } from "@/hooks/useAuth";
 
@@ -55,7 +56,7 @@ export const EnhancedEventsCalendar = () => {
   const displayArea = selectedArea === "all_areas" ? "All Berlin areas" : selectedArea;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
       {/* Calendar and Filters */}
       <div className="lg:col-span-1 space-y-4">
         <Card className="bg-white/10 backdrop-blur-md border-white/20 text-white">
@@ -66,11 +67,6 @@ export const EnhancedEventsCalendar = () => {
             </CardTitle>
             <CardDescription className="text-blue-200">
               Events in {displayArea}
-              {selectedDate && ` - ${new Date(selectedDate).toLocaleDateString("de-DE", { 
-                day: "2-digit", 
-                month: "2-digit", 
-                year: "numeric" 
-              })}`}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -94,12 +90,21 @@ export const EnhancedEventsCalendar = () => {
               modifiersStyles={{
                 hasEvents: { 
                   backgroundColor: 'rgba(59, 130, 246, 0.3)',
-                  fontWeight: 'bold'
+                  fontWeight: 'bold',
+                  border: '1px solid rgba(59, 130, 246, 0.5)'
                 }
               }}
             />
           </CardContent>
         </Card>
+
+        {/* Upcoming Events Section */}
+        <UpcomingEvents
+          events={events}
+          selectedEvent={selectedEvent}
+          onEventSelect={setSelectedEvent}
+          loading={loading}
+        />
       </div>
 
       {/* Events List */}
@@ -114,7 +119,7 @@ export const EnhancedEventsCalendar = () => {
       </div>
 
       {/* Event Details */}
-      <div className="lg:col-span-1">
+      <div className="lg:col-span-2">
         <EventDetails selectedEvent={selectedEvent} />
       </div>
     </div>
