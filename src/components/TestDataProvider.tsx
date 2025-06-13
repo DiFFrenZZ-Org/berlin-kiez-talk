@@ -1,137 +1,93 @@
-
-import { useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { generateSampleChats, generateSampleEvents, generateSampleNews } from '@/utils/sampleData';
-import { errorLogger } from '@/utils/errorLogger';
-import { useToast } from '@/hooks/use-toast';
+// This component seeds test data into Supabase tables for development purposes.
+// It checks if the tables are empty and populates them with sample data.
+import { useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  generateSampleChats,
+  generateSampleEvents,
+  generateSampleNews,   // ✅ now used
+} from "@/utils/sampleData";
+import { errorLogger } from "@/utils/errorLogger";
+import { useToast } from "@/hooks/use-toast";
 
 interface TestDataProviderProps {
   children: React.ReactNode;
 }
 
 export const TestDataProvider = ({ children }: TestDataProviderProps) => {
-  const { toast } = useToast();
+  const { toast } = useToast();               // ✅ now used
 
+  /* ------------------------------------------------------------------ */
+  /*  Seed data only in development                                     */
+  /* ------------------------------------------------------------------ */
   useEffect(() => {
-    const initializeTestData = async () => {
+    if (import.meta.env.PROD) return;         // only run in dev
+
+    (async () => {
       try {
-        // Check if we're in development mode
-        if (process.env.NODE_ENV !== 'development') {
-          return;
-        }
-
-        console.log('Initializing test data...');
-
-        // Initialize sample events in Supabase
-        await initializeSampleEvents();
-        
-        // Initialize sample chat rooms
-        await initializeSampleChats();
-
-        console.log('Test data initialization completed');
-        
-      } catch (error) {
-        console.error('Error initializing test data:', error);
-        errorLogger.logError({
-          error: error as Error,
-          context: 'INITIALIZE_TEST_DATA'
+        await Promise.all([
+          seedEvents(),
+          seedChats(),
+          seedNews(),                         // 👈 new
+        ]);
+        toast({ title: "Mock data loaded ✅" });
+      } catch (err) {
+        toast({
+          title: "Mock data failed",
+          description: (err as Error).message,
+          variant: "destructive",
         });
       }
-    };
+    })();
+  }, [toast]);
 
-    initializeTestData();
-  }, []);
-
-  const initializeSampleEvents = async () => {
-    try {
-      // Check if events already exist
-      const { data: existingEvents, error: checkError } = await supabase
-        .from('berlin_events')
-        .select('id')
-        .limit(1);
-
-      if (checkError) {
-        console.error('Error checking existing events:', checkError);
-        return;
-      }
-
-      // Only add sample events if none exist
-      if (existingEvents && existingEvents.length === 0) {
-        const sampleEvents = generateSampleEvents();
-        
-        const { error: insertError } = await supabase
-          .from('berlin_events')
-          .insert(sampleEvents.map(event => ({
-            title: event.title,
-            description: event.description,
-            event_date: event.event_date,
-            location: event.location,
-            image_url: event.image_url,
-            category: event.category,
-            tags: event.tags,
-            source_url: event.source_url
-          })));
-
-        if (insertError) {
-          console.error('Error inserting sample events:', insertError);
-          errorLogger.logSupabaseError('initializeSampleEvents', insertError, 'berlin_events');
-        } else {
-          console.log('Sample events inserted successfully');
-        }
-      }
-    } catch (error) {
-      console.error('Error in initializeSampleEvents:', error);
-      errorLogger.logError({
-        error: error as Error,
-        context: 'INITIALIZE_SAMPLE_EVENTS'
-      });
+  /* -------------------------- Helpers ---------------------------------- */
+  const seedEvents = async () => {
+    const { data } = await supabase.from("berlin_events").select("id").limit(1);
+    if (!data?.length) {
+      const sample = generateSampleEvents();
+      const { error } = await supabase.from("berlin_events").insert(
+        sample.map((e) => ({
+          title: e.title,
+          description: e.description,
+          event_date: e.event_date,
+          location: e.location,
+          image_url: e.image_url,
+          category: e.category,
+          tags: e.tags,
+          source_url: e.source_url,
+        }))
+      );
+      if (error) errorLogger.logSupabaseError("seedEvents", error, "berlin_events");
     }
   };
 
-  const initializeSampleChats = async () => {
-    try {
-      // Check if chat rooms already exist
-      const { data: existingRooms, error: checkError } = await supabase
-        .from('chat_rooms')
-        .select('id')
-        .limit(1);
-
-      if (checkError) {
-        console.error('Error checking existing chat rooms:', checkError);
-        return;
+  const seedChats = async () => {
+    const { data } = await supabase.from("chat_rooms").select("id").limit(1);
+    if (!data?.length) {
+      const sample = generateSampleChats();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();               // :contentReference[oaicite:3]{index=3}
+      if (user) {
+        const { error } = await supabase
+          .from("chat_rooms")
+          .insert(sample.map((c) => ({ ...c, created_by: user.id })));
+        if (error) errorLogger.logSupabaseError("seedChats", error, "chat_rooms");
       }
+    }
+  };
 
-      // Only add sample chats if none exist
-      if (existingRooms && existingRooms.length === 0) {
-        const sampleChats = generateSampleChats();
-        
-        // Get current user to set as creator
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (user) {
-          const { error: insertError } = await supabase
-            .from('chat_rooms')
-            .insert(sampleChats.map(chat => ({
-              ...chat,
-              created_by: user.id
-            })));
-
-          if (insertError) {
-            console.error('Error inserting sample chat rooms:', insertError);
-            errorLogger.logSupabaseError('initializeSampleChats', insertError, 'chat_rooms');
-          } else {
-            console.log('Sample chat rooms inserted successfully');
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error in initializeSampleChats:', error);
-      errorLogger.logError({
-        error: error as Error,
-        context: 'INITIALIZE_SAMPLE_CHATS'
-      });
+  /* NEW – seed sample news articles ------------------------------------ */
+  const seedNews = async () => {
+    const { data } = await supabase.from("berlin_news").select("id").limit(1);
+    if (!data?.length) {
+      const sample = generateSampleNews();
+      const { error } = await supabase.from("berlin_news").insert(sample);
+      if (error) errorLogger.logSupabaseError("seedNews", error, "berlin_news");
     }
   };
 
   return <>{children}</>;
 };
+

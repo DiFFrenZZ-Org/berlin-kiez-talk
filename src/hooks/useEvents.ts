@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { EventsService } from '@/services/eventsService';
 import { StandardizedEvent, EventFilters } from '@/types/events';
 

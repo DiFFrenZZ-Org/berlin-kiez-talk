@@ -1,9 +1,11 @@
+import { useState, useCallback, useEffect } from "react";
+import { EventsService } from "@/services/eventsService";
+import { StandardizedEvent, EventFilters } from "@/types/events";
+import { errorLogger } from "@/utils/errorLogger";
+import { generateSampleEvents } from "@/utils/sampleData";
 
-import { useState, useEffect } from 'react';
-import { EventsService } from '@/services/eventsService';
-import { StandardizedEvent, EventFilters } from '@/types/events';
-import { errorLogger } from '@/utils/errorLogger';
-import { generateSampleEvents } from '@/utils/sampleData';
+/** A very small helper so we never cast to `any` */
+interface RawError { message?: string; stack?: string; [k: string]: unknown }
 
 export const useEventsWithErrorHandling = () => {
   const [events, setEvents] = useState<StandardizedEvent[]>([]);
@@ -14,100 +16,102 @@ export const useEventsWithErrorHandling = () => {
 
   const eventsService = new EventsService();
 
-  const loadEvents = async (filters?: EventFilters) => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      console.log('Loading events with filters:', filters);
-      const allEvents = await eventsService.fetchAllEvents(filters);
-      
-      // Add sample events for testing if no events are found
-      const eventsToUse = allEvents.length > 0 ? allEvents : generateSampleEvents();
-      
-      setEvents(eventsToUse);
-      setFilteredEvents(eventsToUse);
-      
-      // Auto-select first event if none selected
-      if (eventsToUse.length > 0 && !selectedEvent) {
-        setSelectedEvent(eventsToUse[0]);
-      }
-      
-      console.log('Events loaded successfully:', eventsToUse.length);
-    } catch (err) {
-      const errorMessage = 'Failed to load events';
-      console.error(errorMessage, err);
-      errorLogger.logError({
-        error: err as Error,
-        context: 'LOAD_EVENTS',
-        additionalData: { filters }
-      });
-      setError(errorMessage);
-      
-      // Fallback to sample data
-      const sampleEvents = generateSampleEvents();
-      setEvents(sampleEvents);
-      setFilteredEvents(sampleEvents);
-    } finally {
-      setLoading(false);
-    }
-  };
+  /* ------------------------------------------------------------------ */
+  /*  Load events (wrapped in useCallback so ESLint is happy)           */
+  /* ------------------------------------------------------------------ */
+  const loadEvents = useCallback(
+    async (filters?: EventFilters) => {
+      setLoading(true);
+      setError(null);
 
-  const filterEvents = (filters: {
-    searchTerm?: string;
-    selectedTags?: string[];
-  }) => {
+      try {
+        const allEvents = await eventsService.fetchAllEvents(filters);
+        const eventsToUse = allEvents.length ? allEvents : generateSampleEvents();
+
+        setEvents(eventsToUse);
+        setFilteredEvents(eventsToUse);
+
+        if (!selectedEvent && eventsToUse.length) {
+          setSelectedEvent(eventsToUse[0]);
+        }
+      } catch (err) {
+        const raw = err as RawError;
+        setError("Failed to load events");
+        errorLogger.logError({
+          error: raw,
+          context: "LOAD_EVENTS",
+          additionalData: { filters },
+        });
+        const sample = generateSampleEvents();
+        setEvents(sample);
+        setFilteredEvents(sample);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [eventsService, selectedEvent]
+  );
+
+  /* Auto-load once on mount */
+  useEffect(() => {
+    loadEvents();
+  }, [loadEvents]);
+
+  /* ------------------------------------------------------------------ */
+  /*  Client-side filtering                                             */
+  /* ------------------------------------------------------------------ */
+  const filterEvents = (filters: { searchTerm?: string; selectedTags?: string[] }) => {
     try {
-      console.log('Filtering events with:', filters);
       let filtered = events;
 
       if (filters.searchTerm) {
-        filtered = filtered.filter(event =>
-          event.title.toLowerCase().includes(filters.searchTerm!.toLowerCase()) ||
-          event.description?.toLowerCase().includes(filters.searchTerm!.toLowerCase()) ||
-          event.location?.toLowerCase().includes(filters.searchTerm!.toLowerCase())
+        const term = filters.searchTerm.toLowerCase();
+        filtered = filtered.filter(
+          (e) =>
+            e.title.toLowerCase().includes(term) ||
+            e.description?.toLowerCase().includes(term) ||
+            e.location?.toLowerCase().includes(term)
         );
       }
 
-      if (filters.selectedTags && filters.selectedTags.length > 0) {
-        filtered = filtered.filter(event =>
-          filters.selectedTags!.some(tag =>
-            event.tags?.includes(tag) ||
-            event.title.toLowerCase().includes(tag.toLowerCase()) ||
-            event.description?.toLowerCase().includes(tag.toLowerCase()) ||
-            event.category?.toLowerCase().includes(tag.toLowerCase())
+      if (filters.selectedTags?.length) {
+        filtered = filtered.filter((e) =>
+          filters.selectedTags!.some(
+            (tag) =>
+              e.tags?.includes(tag) ||
+              e.title.toLowerCase().includes(tag.toLowerCase()) ||
+              e.description?.toLowerCase().includes(tag.toLowerCase()) ||
+              e.category?.toLowerCase().includes(tag.toLowerCase())
           )
         );
       }
 
       setFilteredEvents(filtered);
-      
-      // Auto-select first event if current selection is not in filtered results
-      if (filtered.length > 0 && (!selectedEvent || !filtered.find(e => e.id === selectedEvent.id))) {
+
+      if (filtered.length && (!selectedEvent || !filtered.some((e) => e.id === selectedEvent.id))) {
         setSelectedEvent(filtered[0]);
       }
-      
-      console.log('Events filtered successfully:', filtered.length);
     } catch (err) {
-      console.error('Error filtering events:', err);
       errorLogger.logError({
-        error: err as Error,
-        context: 'FILTER_EVENTS',
-        additionalData: { filters }
+        error: err as RawError,
+        context: "FILTER_EVENTS",
+        additionalData: { filters },
       });
     }
   };
 
+  /* ------------------------------------------------------------------ */
+  /*  Calendar helper                                                   */
+  /* ------------------------------------------------------------------ */
   const getEventCountForDate = (date: Date) => {
     try {
-      const dateStr = date.toISOString().split('T')[0];
-      return events.filter(event => event.event_date === dateStr).length;
+      const key = date.toISOString().split("T")[0];
+      return events.filter((e) => e.event_date === key).length;
     } catch (err) {
-      console.error('Error getting event count for date:', err);
       errorLogger.logError({
-        error: err as Error,
-        context: 'GET_EVENT_COUNT_FOR_DATE',
-        additionalData: { date }
+        error: err as RawError,
+        context: "GET_EVENT_COUNT_FOR_DATE",
+        additionalData: { date },
       });
       return 0;
     }
@@ -122,6 +126,6 @@ export const useEventsWithErrorHandling = () => {
     setSelectedEvent,
     loadEvents,
     filterEvents,
-    getEventCountForDate
+    getEventCountForDate,
   };
 };

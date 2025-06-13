@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 
 const berlinBoroughs = [
   'Mitte', 'Friedrichshain-Kreuzberg', 'Pankow', 'Charlottenburg-Wilmersdorf',
-  'Spandau', 'Steglitz-Zehlendorf', 'Tempelhof-Schöneberg', 'Neukölln', 
+  'Spandau', 'Steglitz-Zehlendorf', 'Tempelhof-Schöneberg', 'Neukölln',
   'Treptow-Köpenick', 'Marzahn-Hellersdorf', 'Lichtenberg', 'Reinickendorf'
 ];
 
@@ -51,7 +51,7 @@ export const AuthFlow = () => {
         const { error } = await signUp(formData.email, formData.password, {
           nickname: formData.nickname,
           user_role: selectedRole,
-          borough: formData.borough
+          borough: formData.borough,
         });
         if (error) throw error;
         toast({
@@ -59,10 +59,12 @@ export const AuthFlow = () => {
           description: "Bitte bestätigen Sie Ihre E-Mail-Adresse.",
         });
       }
-    } catch (error: any) {
+    } catch (err) {                           // ← no explicit 'any'
+      const msg =
+        err instanceof Error ? err.message : "Unbekannter Fehler";
       toast({
         title: "Fehler",
-        description: error.message,
+        description: msg,
         variant: "destructive",
       });
     } finally {
@@ -125,13 +127,13 @@ export const AuthFlow = () => {
             </Button>
           )}
           <CardTitle className="text-xl">
-            {mode === 'signin' 
-              ? 'Anmelden' 
+            {mode === 'signin'
+              ? 'Anmelden'
               : `Registrierung als ${selectedRole === 'seller' ? 'Verkäufer' : 'Käufer'}`
             }
           </CardTitle>
           <CardDescription className="text-blue-200">
-            {mode === 'signin' 
+            {mode === 'signin'
               ? 'Melden Sie sich in Ihrem Konto an'
               : 'Erstellen Sie Ihr anonymes Profil'
             }
@@ -151,7 +153,7 @@ export const AuthFlow = () => {
                 required
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="password" className="text-white">Passwort</Label>
               <Input
@@ -182,8 +184,8 @@ export const AuthFlow = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="borough" className="text-white">Bezirk</Label>
-                  <Select 
-                    value={formData.borough} 
+                  <Select
+                    value={formData.borough}
                     onValueChange={(value) => setFormData(prev => ({ ...prev, borough: value }))}
                   >
                     <SelectTrigger className="bg-white/10 border-white/20 text-white">
@@ -229,8 +231,8 @@ export const AuthFlow = () => {
               variant="link"
               className="text-blue-300 hover:text-white"
             >
-              {mode === 'signin' 
-                ? 'Noch kein Konto? Registrieren' 
+              {mode === 'signin'
+                ? 'Noch kein Konto? Registrieren'
                 : 'Bereits ein Konto? Anmelden'
               }
             </Button>

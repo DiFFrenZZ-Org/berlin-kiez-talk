@@ -1,8 +1,8 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 import path from 'path';
-import { componentTagger } from 'lovable-tagger';
-import tailwindcss from '@tailwindcss/vite';
+// import { componentTagger } from 'lovable-tagger';
+import tailwindcss from 'tailwindcss';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -13,10 +13,15 @@ export default defineConfig(({ mode }) => {
       port: 8080,
     },
     plugins: [
-      tailwindcss(),
       react(),
-      mode === 'development' && componentTagger(),
-    ].filter(Boolean),
+    ],
+    css: {
+      postcss: {
+        plugins: [
+          tailwindcss()  // Proper Tailwind integration via PostCSS
+        ]
+      }
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),

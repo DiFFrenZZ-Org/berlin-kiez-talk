@@ -1,16 +1,43 @@
-
 import { useState, useEffect, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Send, Plus, Shield, Paperclip, Smile, MoreHorizontal, Search, Trash, Archive } from "lucide-react";
+import {
+  Send,
+  Plus,
+  Shield,
+  Paperclip,
+  Smile,
+  MoreHorizontal,
+  Search,
+  Trash,
+  Archive,
+} from "lucide-react";
+
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
 import { UserProfile } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -18,59 +45,76 @@ import { sendChatMessage } from "@/services/sendChatMessage";
 import { useChatRooms, ChatRoom } from "@/hooks/useChatRooms";
 import { useRoomMessages, ChatMessage } from "@/hooks/useRoomMessages";
 
+/* -------------------------------------------------------------------------- */
+/*  Types                                                                     */
+/* -------------------------------------------------------------------------- */
+
 interface ChatInterfaceProps {
   userProfile: UserProfile;
   sendAnon?: boolean;
   setSendAnon?: (v: boolean) => void;
 }
 
+interface InsertChatRoom {
+  name: string;
+  description: string;
+  created_by: string;
+  is_temporary: boolean;
+  room_type: "group" | "channel";
+  is_encrypted: boolean;
+  expires_at?: string;
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Component                                                                 */
+/* -------------------------------------------------------------------------- */
 
 export const ChatInterface = ({
   userProfile,
   sendAnon: controlledSendAnon,
   setSendAnon: controlledSetSendAnon,
 }: ChatInterfaceProps) => {
-  const [message, setMessage] = useState('');
+  /* ------------------------------ Local state ----------------------------- */
+  const [message, setMessage] = useState("");
   const [activeChat, setActiveChat] = useState<string | null>(null);
+
   const { data: chats = [], refetch: refetchRooms } = useChatRooms();
-  const { data: messages = [], refetch: refetchMessages } = useRoomMessages(activeChat);
+  const { data: messages = [] } = useRoomMessages(activeChat); // refetchMessages not used
+
   const [openCreate, setOpenCreate] = useState(false);
-  const [newRoomName, setNewRoomName] = useState('');
-  const [newRoomDesc, setNewRoomDesc] = useState('');
+  const [newRoomName, setNewRoomName] = useState("");
+  const [newRoomDesc, setNewRoomDesc] = useState("");
   const [isTemporary, setIsTemporary] = useState(false);
-  const [expiry, setExpiry] = useState<'__placeholder' | '24' | '48' | '72'>(
+  const [expiry, setExpiry] = useState<"__placeholder" | "24" | "48" | "72">(
     "__placeholder"
   );
-  const [roomType, setRoomType] = useState<'__placeholder' | 'group' | 'channel'>(
+  const [roomType, setRoomType] = useState<"__placeholder" | "group" | "channel">(
     "__placeholder"
   );
   const [internalSendAnon, setInternalSendAnon] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
+
   const sendAnon = controlledSendAnon ?? internalSendAnon;
   const setSendAnon = controlledSetSendAnon ?? setInternalSendAnon;
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
+  /* ------------------------------ Scroll helper --------------------------- */
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  // refetch rooms when component mounts to ensure fresh data
+  useEffect(scrollToBottom, [messages]);
   useEffect(() => {
     refetchRooms();
   }, [refetchRooms]);
 
-  // old data fetching handled by React Query hooks now
-
-  const queryClient = useQueryClient();
-
+  /* ------------------------------ Mutations ------------------------------- */
   const sendMessageMutation = useMutation({
     mutationFn: async (content: string) => {
-      if (!activeChat) throw new Error('No active chat');
+      if (!activeChat) throw new Error("No active chat");
       return sendChatMessage({
         roomId: activeChat,
         userId: userProfile.id,
@@ -80,8 +124,14 @@ export const ChatInterface = ({
     },
     onMutate: async (content: string) => {
       if (!activeChat) return { previous: [] as ChatMessage[] };
-      await queryClient.cancelQueries({ queryKey: ['rooms', activeChat, 'messages'] });
-      const previous = queryClient.getQueryData<ChatMessage[]>(['rooms', activeChat, 'messages']) || [];
+
+      await queryClient.cancelQueries({ queryKey: ["rooms", activeChat, "messages"] });
+      const previous =
+        queryClient.getQueryData<ChatMessage[]>([
+          "rooms",
+          activeChat,
+          "messages",
+        ]) || [];
 
       const optimistic: ChatMessage = {
         id: `temp-${Date.now()}`,
@@ -90,73 +140,72 @@ export const ChatInterface = ({
         content,
         created_at: new Date().toISOString(),
         is_anonymous: sendAnon,
-        anonymous_name: sendAnon ? 'Anonymous' : null,
+        anonymous_name: sendAnon ? "Anonymous" : null,
       };
 
-      queryClient.setQueryData<ChatMessage[]>(['rooms', activeChat, 'messages'], [...previous, optimistic]);
-      setMessage('');
+      queryClient.setQueryData<ChatMessage[]>(
+        ["rooms", activeChat, "messages"],
+        [...previous, optimistic]
+      );
+      setMessage("");
       return { previous };
     },
-    onError: (_err, _vars, context) => {
-      if (activeChat) {
-        queryClient.setQueryData(['rooms', activeChat, 'messages'], context?.previous || []);
-      }
-      toast({ title: 'Error', description: 'Could not send message', variant: 'destructive' });
+    onError: (_err, _vars, ctx) => {
+      if (activeChat)
+        queryClient.setQueryData(
+          ["rooms", activeChat, "messages"],
+          ctx?.previous || []
+        );
+      toast({
+        title: "Error",
+        description: "Could not send message",
+        variant: "destructive",
+      });
     },
     onSettled: () => {
-      if (activeChat) queryClient.invalidateQueries({ queryKey: ['rooms', activeChat, 'messages'] });
+      if (activeChat)
+        queryClient.invalidateQueries({ queryKey: ["rooms", activeChat, "messages"] });
     },
   });
 
   const sendMessage = () => {
-    if (!message.trim()) return;
-    sendMessageMutation.mutate(message);
+    if (message.trim()) sendMessageMutation.mutate(message);
   };
 
+  /* ------------------------------ Message delete -------------------------- */
   const deleteMessage = async (messageId: string) => {
     try {
-      console.log('Deleting message:', messageId);
       const { error } = await supabase
-        .from('chat_messages')
+        .from("chat_messages")
         .delete()
-        .eq('id', messageId)
-        .eq('sender_id', userProfile.id);
+        .eq("id", messageId)
+        .eq("sender_id", userProfile.id);
 
-      if (!error) {
-        console.log('Message deleted successfully');
-        if (activeChat) {
-          queryClient.setQueryData<ChatMessage[]>(
-            ['rooms', activeChat, 'messages'],
-            (old = []) => old.filter(m => m.id !== messageId)
-          );
-        }
-        toast({
-          title: "Message deleted",
-          description: "Your message has been deleted.",
-        });
-      } else {
-        console.error('deleteMessage error:', error);
-        toast({
-          title: "Error",
-          description: "Could not delete message.",
-          variant: "destructive",
-        });
+      if (error) throw error;
+
+      if (activeChat) {
+        queryClient.setQueryData<ChatMessage[]>(
+          ["rooms", activeChat, "messages"],
+          (old = []) => old.filter((m) => m.id !== messageId)
+        );
       }
-    } catch (err) {
-      console.error('deleteMessage unexpected error:', err);
+      toast({ title: "Message deleted", description: "Your message has been deleted." });
+    } catch {
       toast({
         title: "Error",
-        description: "Unexpected error deleting message.",
+        description: "Could not delete message.",
         variant: "destructive",
       });
     }
   };
 
+  /* ------------------------------ Room delete ----------------------------- */
   const deleteRoom = async (roomId: string) => {
     try {
-      const room = chats.find(c => c.id === roomId);
-      const canDelete = room?.created_by === userProfile.id || userProfile.user_role === 'super_admin';
-      
+      const room = chats.find((c) => c.id === roomId);
+      const canDelete =
+        room?.created_by === userProfile.id || userProfile.user_role === "super_admin";
+
       if (!canDelete) {
         toast({
           title: "Permission denied",
@@ -166,104 +215,80 @@ export const ChatInterface = ({
         return;
       }
 
-      console.log('Deleting room:', roomId);
-      const { error } = await supabase
-        .from('chat_rooms')
-        .delete()
-        .eq('id', roomId);
+      const { error } = await supabase.from("chat_rooms").delete().eq("id", roomId);
+      if (error) throw error;
 
-      if (!error) {
-        console.log('Room deleted successfully');
-        queryClient.setQueryData<ChatRoom[]>(['rooms'], (old = []) => old.filter(c => c.id !== roomId));
-        if (activeChat === roomId) {
-          setActiveChat(null);
-        }
-        toast({
-          title: "Room deleted",
-          description: "Chat room has been deleted.",
-        });
-      } else {
-        console.error('deleteRoom error:', error);
-        toast({
-          title: "Error",
-          description: "Could not delete room.",
-          variant: "destructive",
-        });
-      }
-    } catch (err) {
-      console.error('deleteRoom unexpected error:', err);
+      queryClient.setQueryData<ChatRoom[]>(["rooms"], (old = []) =>
+        old.filter((c) => c.id !== roomId)
+      );
+      if (activeChat === roomId) setActiveChat(null);
+
+      toast({ title: "Room deleted", description: "Chat room has been deleted." });
+    } catch {
       toast({
         title: "Error",
-        description: "Unexpected error deleting room.",
+        description: "Could not delete room.",
         variant: "destructive",
       });
     }
   };
 
+  /* ------------------------------ Room create ----------------------------- */
   const createRoom = async () => {
-    if (!newRoomName.trim()) return;
+    if (!newRoomName.trim() || roomType === "__placeholder") return;
 
     try {
-      console.log('Creating new room...', { name: newRoomName, type: roomType });
-      const insertData: any = {
+      const insertData: InsertChatRoom = {
         name: newRoomName,
         description: newRoomDesc,
         created_by: userProfile.id,
         is_temporary: isTemporary,
-        room_type: roomType,
+        room_type: roomType as "group" | "channel",
         is_encrypted: true,
       };
 
       if (isTemporary) {
-        const hours = parseInt(expiry, 10);
-        insertData.expires_at = new Date(Date.now() + hours * 3600 * 1000).toISOString();
+        const hours = Number(expiry);
+        insertData.expires_at = new Date(Date.now() + hours * 36e5).toISOString();
       }
 
       const { data, error } = await supabase
-        .from('chat_rooms')
+        .from("chat_rooms")
         .insert(insertData)
         .select()
         .single();
 
-      if (!error && data) {
-        console.log('Room created successfully:', data.id);
-        await supabase.from('chat_participants').insert({
-          room_id: data.id,
-          user_id: userProfile.id,
-          is_admin: true,
-        });
-        queryClient.setQueryData<ChatRoom[]>(['rooms'], (old = []) => [data, ...(old || [])]);
-        setOpenCreate(false);
-        setNewRoomName('');
-        setNewRoomDesc('');
-        setIsTemporary(false);
-        toast({
-          title: "Room created",
-          description: "New chat room has been created.",
-        });
-      } else {
-        console.error('createRoom error:', error);
-        toast({
-          title: "Error",
-          description: "Could not create room.",
-          variant: "destructive",
-        });
-      }
-    } catch (err) {
-      console.error('createRoom unexpected error:', err);
+      if (error || !data) throw error;
+
+      await supabase.from("chat_participants").insert({
+        room_id: data.id,
+        user_id: userProfile.id,
+        is_admin: true,
+      });
+
+      queryClient.setQueryData<ChatRoom[]>(["rooms"], (old = []) => [data, ...old]);
+      setOpenCreate(false);
+      setNewRoomName("");
+      setNewRoomDesc("");
+      setIsTemporary(false);
+
+      toast({ title: "Room created", description: "New chat room has been created." });
+    } catch {
       toast({
         title: "Error",
-        description: "Unexpected error creating room.",
+        description: "Could not create room.",
         variant: "destructive",
       });
     }
   };
 
-  const filteredChats = chats.filter(chat => 
-    chat.name.toLowerCase().includes(searchQuery.toLowerCase())
+  /* ------------------------------ Filtering ------------------------------- */
+  const filteredChats = chats.filter((c) =>
+    c.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+  const activeRoom = chats.find((c) => c.id === activeChat);
 
-  const activeRoom = chats.find(c => c.id === activeChat);
+  /* ------------------------------ JSX ------------------------------------- */
 
   return (
     <div className="flex h-[calc(100vh-120px)] bg-slate-900/50 backdrop-blur-md rounded-lg border border-white/20 overflow-hidden">
@@ -281,7 +306,7 @@ export const ChatInterface = ({
               <Plus className="h-4 w-4" />
             </Button>
           </div>
-          
+
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -304,9 +329,8 @@ export const ChatInterface = ({
             filteredChats.map((chat) => (
               <div
                 key={chat.id}
-                className={`p-4 cursor-pointer border-b border-white/10 hover:bg-slate-700/30 transition-colors group ${
-                  activeChat === chat.id ? 'bg-blue-600/20 border-r-2 border-r-blue-500' : ''
-                }`}
+                className={`p-4 cursor-pointer border-b border-white/10 hover:bg-slate-700/30 transition-colors group ${activeChat === chat.id ? 'bg-blue-600/20 border-r-2 border-r-blue-500' : ''
+                  }`}
               >
                 <div className="flex items-center space-x-3">
                   <Avatar className="h-10 w-10">
@@ -315,7 +339,7 @@ export const ChatInterface = ({
                       {chat.name.substring(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  
+
                   <div className="flex-1 min-w-0" onClick={() => setActiveChat(chat.id)}>
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center space-x-2">
@@ -330,25 +354,25 @@ export const ChatInterface = ({
                       <div className="flex items-center space-x-1">
                         {chat.last_message_at && (
                           <span className="text-xs text-gray-400">
-                            {new Date(chat.last_message_at).toLocaleTimeString([], { 
-                              hour: '2-digit', 
-                              minute: '2-digit' 
+                            {new Date(chat.last_message_at).toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit'
                             })}
                           </span>
                         )}
                         {(chat.created_by === userProfile.id || userProfile.user_role === 'super_admin') && (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
+                              <Button
+                                variant="ghost"
+                                size="sm"
                                 className="opacity-0 group-hover:opacity-100 h-6 w-6 p-0 text-gray-400 hover:text-red-400"
                               >
                                 <Trash className="h-3 w-3" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent>
-                              <DropdownMenuItem 
+                              <DropdownMenuItem
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   deleteRoom(chat.id);
@@ -363,11 +387,11 @@ export const ChatInterface = ({
                         )}
                       </div>
                     </div>
-                    
+
                     {chat.last_message_content && (
                       <p className="text-xs text-gray-400 truncate">{chat.last_message_content}</p>
                     )}
-                    
+
                     {chat.expires_at && (
                       <p className="text-xs text-yellow-400 mt-1">
                         Expires: {new Date(chat.expires_at).toLocaleDateString()}
@@ -395,7 +419,7 @@ export const ChatInterface = ({
                       {activeRoom.name.substring(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  
+
                   <div>
                     <h3 className="font-semibold text-white">{activeRoom.name}</h3>
                     <div className="flex items-center space-x-2">
@@ -413,7 +437,7 @@ export const ChatInterface = ({
                     </div>
                   </div>
                 </div>
-                
+
                 <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
@@ -438,15 +462,14 @@ export const ChatInterface = ({
                   const displayName = isOwn
                     ? msg.is_anonymous ? 'You (Anonymous)' : 'You'
                     : msg.is_anonymous ? msg.anonymous_name || 'Anonymous' : 'User';
-                  
+
                   const showAvatar = !isOwn && (index === 0 || messages[index - 1].sender_id !== msg.sender_id);
-                  
+
                   return (
                     <div
                       key={msg.id}
-                      className={`flex ${isOwn ? 'justify-end' : 'justify-start'} ${
-                        index > 0 && messages[index - 1].sender_id === msg.sender_id ? 'mt-1' : 'mt-4'
-                      } group`}
+                      className={`flex ${isOwn ? 'justify-end' : 'justify-start'} ${index > 0 && messages[index - 1].sender_id === msg.sender_id ? 'mt-1' : 'mt-4'
+                        } group`}
                     >
                       {!isOwn && showAvatar && (
                         <Avatar className="h-6 w-6 mr-2 mt-1">
@@ -455,24 +478,23 @@ export const ChatInterface = ({
                           </AvatarFallback>
                         </Avatar>
                       )}
-                      
+
                       {!isOwn && !showAvatar && <div className="w-8" />}
-                      
+
                       <div className={`max-w-xs lg:max-w-md ${isOwn ? 'ml-auto' : ''} relative`}>
                         {showAvatar && !isOwn && (
                           <p className="text-xs font-medium text-gray-300 mb-1 ml-1">{displayName}</p>
                         )}
-                        
+
                         <div
-                          className={`px-4 py-2 rounded-lg ${
-                            isOwn 
-                              ? 'bg-blue-600 text-white rounded-br-sm' 
-                              : 'bg-slate-700 text-white rounded-bl-sm'
-                          }`}
+                          className={`px-4 py-2 rounded-lg ${isOwn
+                            ? 'bg-blue-600 text-white rounded-br-sm'
+                            : 'bg-slate-700 text-white rounded-bl-sm'
+                            }`}
                         >
                           <div className="flex items-start justify-between">
                             <p className="text-sm whitespace-pre-wrap flex-1">{msg.content}</p>
-                            
+
                             {/* Message Actions */}
                             <div className="flex items-center space-x-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
                               {isOwn && (
@@ -485,7 +507,7 @@ export const ChatInterface = ({
                                   <Trash className="h-3 w-3" />
                                 </Button>
                               )}
-                              
+
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button
@@ -508,11 +530,11 @@ export const ChatInterface = ({
                               </DropdownMenu>
                             </div>
                           </div>
-                          
+
                           <p className="text-xs opacity-70 mt-1">
-                            {new Date(msg.created_at).toLocaleTimeString([], { 
-                              hour: '2-digit', 
-                              minute: '2-digit' 
+                            {new Date(msg.created_at).toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit'
                             })}
                           </p>
                         </div>
@@ -530,24 +552,24 @@ export const ChatInterface = ({
                 <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white mb-2">
                   <Paperclip className="h-4 w-4" />
                 </Button>
-                
+
                 <div className="flex-1">
                   {/* Anonymous toggle for eligible users */}
-                  {(userProfile.subscription_tier === 'pro' || 
-                    userProfile.subscription_tier === 'premium' || 
+                  {(userProfile.subscription_tier === 'pro' ||
+                    userProfile.subscription_tier === 'premium' ||
                     userProfile.user_role === 'seller') && (
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Checkbox 
-                        id="anon-send" 
-                        checked={sendAnon} 
-                        onCheckedChange={() => setSendAnon(!sendAnon)} 
-                      />
-                      <label htmlFor="anon-send" className="text-xs text-gray-300">
-                        Send anonymously
-                      </label>
-                    </div>
-                  )}
-                  
+                      <div className="flex items-center space-x-2 mb-2">
+                        <Checkbox
+                          id="anon-send"
+                          checked={sendAnon}
+                          onCheckedChange={() => setSendAnon(!sendAnon)}
+                        />
+                        <label htmlFor="anon-send" className="text-xs text-gray-300">
+                          Send anonymously
+                        </label>
+                      </div>
+                    )}
+
                   <div className="flex items-end space-x-2">
                     <Input
                       value={message}
@@ -562,13 +584,13 @@ export const ChatInterface = ({
                       className="bg-slate-700 border-slate-600 text-white placeholder:text-gray-400 min-h-[40px] resize-none"
                       style={{ minHeight: '40px' }}
                     />
-                    
+
                     <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
                       <Smile className="h-4 w-4" />
                     </Button>
-                    
-                    <Button 
-                      onClick={sendMessage} 
+
+                    <Button
+                      onClick={sendMessage}
                       className="bg-blue-600 hover:bg-blue-700"
                       disabled={!message.trim()}
                     >
@@ -588,7 +610,7 @@ export const ChatInterface = ({
           </div>
         )}
       </div>
-      
+
       {/* Create Room Dialog */}
       <Dialog open={openCreate} onOpenChange={setOpenCreate}>
         <DialogContent className="bg-slate-800 border-slate-600 text-white">
@@ -608,7 +630,7 @@ export const ChatInterface = ({
               onChange={(e) => setNewRoomDesc(e.target.value)}
               className="bg-slate-700 border-slate-600 text-white placeholder:text-gray-400"
             />
-            
+
             <Select value={roomType} onValueChange={(v) => setRoomType(v as 'group' | 'channel')}>
               <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
                 <SelectValue placeholder="Room type" />
@@ -621,25 +643,25 @@ export const ChatInterface = ({
                 <SelectItem value="channel">Channel</SelectItem>
               </SelectContent>
             </Select>
-            
+
             <div className="flex items-center space-x-2">
               <Checkbox id="temp" checked={isTemporary} onCheckedChange={() => setIsTemporary(!isTemporary)} />
               <label htmlFor="temp" className="text-sm">Temporary room</label>
             </div>
-            
+
             {isTemporary && (
               <Select value={expiry} onValueChange={(v) => setExpiry(v as '24' | '48' | '72')}>
                 <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
                   <SelectValue placeholder="Expires in" />
                 </SelectTrigger>
-              <SelectContent className="bg-slate-800 border-slate-600 text-white">
+                <SelectContent className="bg-slate-800 border-slate-600 text-white">
                   <SelectItem value="__placeholder" disabled>
                     Expires in
                   </SelectItem>
                   <SelectItem value="24">24 hours</SelectItem>
                   <SelectItem value="48">48 hours</SelectItem>
                   <SelectItem value="72">72 hours</SelectItem>
-              </SelectContent>
+                </SelectContent>
               </Select>
             )}
           </div>

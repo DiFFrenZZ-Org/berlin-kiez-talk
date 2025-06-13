@@ -1,78 +1,86 @@
+import { StandardizedEvent } from "@/types/events";
 
-import { StandardizedEvent } from '@/types/events';
+/* ------------------------------------------------------------------ */
+/*  1. Duplicate removal                                              */
+/* ------------------------------------------------------------------ */
 
-export const removeDuplicateEvents = (events: StandardizedEvent[]): StandardizedEvent[] => {
-  const seen = new Set();
-  return events.filter(event => {
-    const key = `${event.title}-${event.event_date}-${event.location}`;
-    if (seen.has(key)) {
-      return false;
-    }
+export function removeDuplicateEvents(
+  events: StandardizedEvent[]
+): StandardizedEvent[] {
+  const seen = new Set<string>();
+  return events.filter((ev) => {
+    const key = `${ev.title}-${ev.event_date}-${ev.location}`;
+    if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
-};
+}
 
-export const inferCategory = (title: string, description?: string | null): string => {
-  const text = `${title} ${description || ''}`.toLowerCase();
-  
-  if (text.includes('techno') || text.includes('club') || text.includes('dj')) return 'techno';
-  if (text.includes('art') || text.includes('gallery') || text.includes('exhibition')) return 'culture';
-  if (text.includes('food') || text.includes('restaurant') || text.includes('market')) return 'food';
-  if (text.includes('festival') || text.includes('open-air') || text.includes('outdoor')) return 'open-air';
-  if (text.includes('workshop') || text.includes('learn') || text.includes('course')) return 'workshop';
-  if (text.includes('sport') || text.includes('fitness') || text.includes('run')) return 'sports';
-  
-  return 'other';
-};
+/* ------------------------------------------------------------------ */
+/*  2. Category inference                                             */
+/* ------------------------------------------------------------------ */
 
-export const generateEventTags = (event: any): string[] => {
+export function inferCategory(
+  title: string,
+  description?: string | null
+): string {
+  const txt = `${title} ${description ?? ""}`.toLowerCase();
+
+  if (/techno|club|dj/.test(txt)) return "techno";
+  if (/art|gallery|exhibition/.test(txt)) return "culture";
+  if (/food|restaurant|market/.test(txt)) return "food";
+  if (/festival|open-air|outdoor/.test(txt)) return "open-air";
+  if (/workshop|learn|course/.test(txt)) return "workshop";
+  if (/sport|fitness|run/.test(txt)) return "sports";
+  return "other";
+}
+
+/* ------------------------------------------------------------------ */
+/*  3. Tag generator (no more `any`)                                  */
+/* ------------------------------------------------------------------ */
+
+type TaggableEvent = Pick<
+  StandardizedEvent,
+  "title" | "description" | "tags" | "category"
+>;
+
+export function generateEventTags(ev: TaggableEvent): string[] {
   const tags: string[] = [];
-  
-  if (event.tags && Array.isArray(event.tags)) {
-    tags.push(...event.tags);
-  }
-  
-  if (event.category) {
-    tags.push(event.category);
-  }
-  
-  // Generate tags based on title and description
-  const text = `${event.title} ${event.description || ''}`.toLowerCase();
-  
-  if (text.includes('free')) tags.push('Free');
-  if (text.includes('outdoor') || text.includes('open-air')) tags.push('Outdoor');
-  if (text.includes('indoor')) tags.push('Indoor');
-  if (text.includes('family')) tags.push('Family-friendly');
-  if (text.includes('kids') || text.includes('children')) tags.push('Kids');
-  if (text.includes('music')) tags.push('Music');
-  if (text.includes('food') || text.includes('drink')) tags.push('Food & Drink');
-  if (text.includes('art') || text.includes('culture')) tags.push('Culture');
-  if (text.includes('workshop') || text.includes('learn')) tags.push('Educational');
-  
-  return [...new Set(tags)]; // Remove duplicates
-};
 
-export const formatEventDate = (dateString: string): string => {
-  const date = new Date(dateString);
+  if (Array.isArray(ev.tags)) tags.push(...ev.tags);
+  if (ev.category) tags.push(ev.category);
+
+  const txt = `${ev.title} ${ev.description ?? ""}`.toLowerCase();
+
+  if (txt.includes("free")) tags.push("Free");
+  if (/(outdoor|open-air)/.test(txt)) tags.push("Outdoor");
+  if (txt.includes("indoor")) tags.push("Indoor");
+  if (/(family|kids|children)/.test(txt)) tags.push("Family-friendly");
+  if (txt.includes("music")) tags.push("Music");
+  if (/(food|drink)/.test(txt)) tags.push("Food & Drink");
+  if (/(art|culture)/.test(txt)) tags.push("Culture");
+  if (/(workshop|learn)/.test(txt)) tags.push("Educational");
+
+  return Array.from(new Set(tags)); // de-duplicate
+}
+
+/* ------------------------------------------------------------------ */
+/*  4. Date label helper                                              */
+/* ------------------------------------------------------------------ */
+
+export function formatEventDate(dateStr: string): string {
+  const date = new Date(dateStr);
   const today = new Date();
-  
-  // Check if it's today
-  if (date.toDateString() === today.toDateString()) {
-    return "Today";
-  }
-  
-  // Check if it's tomorrow
+
+  if (date.toDateString() === today.toDateString()) return "Today";
+
   const tomorrow = new Date(today);
   tomorrow.setDate(today.getDate() + 1);
-  if (date.toDateString() === tomorrow.toDateString()) {
-    return "Tomorrow";
-  }
-  
-  // Return formatted date
-  return date.toLocaleDateString("de-DE", { 
-    day: "2-digit", 
-    month: "2-digit", 
-    year: "numeric" 
+  if (date.toDateString() === tomorrow.toDateString()) return "Tomorrow";
+
+  return date.toLocaleDateString("de-DE", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
   });
-};
+}

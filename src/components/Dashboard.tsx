@@ -1,5 +1,6 @@
 
 import { useState } from "react";
+import type { LucideIcon } from "lucide-react";
 
 import {
   MessageSquare,
@@ -18,7 +19,6 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChatInterface } from "@/components/ChatInterface";
 import { EnhancedForumList } from "@/components/EnhancedForumList";
@@ -31,12 +31,19 @@ import { BuyerDashboard } from "@/components/BuyerDashboard";
 import { useAuth, UserProfile } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
+type TabId =
+  | "forum"
+  | "chat"
+  | "sellers"
+  | "announcements"
+  | "events"
+  | "profile";
 interface DashboardProps {
   userProfile: UserProfile;
 }
 
 export const Dashboard = ({ userProfile }: DashboardProps) => {
-  const [activeTab, setActiveTab] = useState<'forum' | 'chat' | 'sellers' | 'announcements' | 'events' | 'profile'>('forum');
+  const [activeTab, setActiveTab] = useState<TabId>("forum");
 
   const { theme, setTheme } = useTheme();
   const { signOut } = useAuth();
@@ -58,7 +65,7 @@ export const Dashboard = ({ userProfile }: DashboardProps) => {
     }
   };
 
-  const tabs = [
+  const tabs: { id: TabId; label: string; icon: LucideIcon }[] = [
     { id: 'forum', label: 'Forum', icon: Users },
     { id: 'chat', label: 'Chats', icon: MessageSquare },
     { id: 'sellers', label: 'Verkäufer', icon: Star },
@@ -109,13 +116,12 @@ export const Dashboard = ({ userProfile }: DashboardProps) => {
               {getRoleDisplay()}
             </Badge>
             {userProfile.user_role === 'seller' && (
-              <Badge 
-                variant="outline" 
-                className={`${
-                  userProfile.subscription_active 
-                    ? 'border-green-400 text-green-300' 
+              <Badge
+                variant="outline"
+                className={`${userProfile.subscription_active
+                    ? 'border-green-400 text-green-300'
                     : 'border-red-400 text-red-300'
-                }`}
+                  }`}
               >
                 <CreditCard className="h-3 w-3 mr-1" />
                 {userProfile.subscription_active ? 'Aktiv' : 'Inaktiv'}
@@ -153,13 +159,12 @@ export const Dashboard = ({ userProfile }: DashboardProps) => {
             return (
               <Button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => setActiveTab(tab.id)}
                 variant={activeTab === tab.id ? "default" : "ghost"}
-                className={`flex-1 ${
-                  activeTab === tab.id 
-                    ? "bg-blue-600 text-white" 
+                className={`flex-1 ${activeTab === tab.id
+                    ? "bg-blue-600 text-white"
                     : "text-blue-200 hover:text-white hover:bg-white/10"
-                }`}
+                  }`}
               >
                 <Icon className="h-4 w-4 mr-2" />
                 {tab.label}

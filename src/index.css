@@ -1,6 +1,9 @@
+/* src/index.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+@tailwind typography;
+
 
 /* Definition of the design system. All colors, gradients, fonts, etc should be defined here. */
 

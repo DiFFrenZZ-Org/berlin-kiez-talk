@@ -1,105 +1,117 @@
+/* ------------------------------------------------------------------ */
+/*  Error-logging utility                                             */
+/* ------------------------------------------------------------------ */
+type UnknownRecord = Record<string, unknown>;
 
-interface ErrorLogData {
-  error: Error | string;
+export interface ErrorLogData {
+  error: unknown;            // use unknown; narrow later
   context?: string;
   userId?: string;
-  additionalData?: Record<string, any>;
+  additionalData?: UnknownRecord;
 }
 
+interface LogEntry extends Required<Omit<ErrorLogData, "error">> {
+  error: string;             // serialised message
+  stack?: string;
+  userAgent: string;
+  url: string;
+  timestamp: string;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Narrowing helper                                                  */
+/* ------------------------------------------------------------------ */
+function isError(e: unknown): e is Error {
+  return e instanceof Error;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Singleton logger                                                  */
+/* ------------------------------------------------------------------ */
 class ErrorLogger {
   private static instance: ErrorLogger;
 
   static getInstance(): ErrorLogger {
-    if (!ErrorLogger.instance) {
-      ErrorLogger.instance = new ErrorLogger();
-    }
+    if (!ErrorLogger.instance) ErrorLogger.instance = new ErrorLogger();
     return ErrorLogger.instance;
   }
 
-  logError({ error, context = 'Unknown', userId, additionalData }: ErrorLogData) {
+  /* ---------------- public API ------------------------------------ */
+  logError({ error, context = "Unknown", userId, additionalData }: ErrorLogData) {
     const timestamp = new Date().toISOString();
-    const errorMessage = error instanceof Error ? error.message : error;
-    const stack = error instanceof Error ? error.stack : undefined;
+    const msg = isError(error) ? error.message : String(error);
+    const stack = isError(error) ? error.stack : undefined;
 
-    const logEntry = {
+    const entry: LogEntry = {
       timestamp,
       context,
-      error: errorMessage,
+      error: msg,
       stack,
-      userId,
-      additionalData,
+      userId: userId ?? "anonymous",
+      additionalData: additionalData ?? {},
       userAgent: navigator.userAgent,
-      url: window.location.href
+      url: window.location.href,
     };
 
-    // Log to console for development
-    console.error(`[${timestamp}] ${context}:`, logEntry);
+    /* dev console -------------------------------------------------- */
+    // eslint-disable-next-line no-console
+    console.error(`[${timestamp}] ${context}:`, entry);
 
-    // In production, you could send this to a logging service
-    if (process.env.NODE_ENV === 'production') {
-      this.sendToLoggingService(logEntry);
-    }
+    /* prod sink ---------------------------------------------------- */
+    if (import.meta.env.PROD) void this.sendToLoggingService(entry);
   }
 
-  logAPIError(endpoint: string, error: any, requestData?: any) {
+  logAPIError(endpoint: string, error: unknown, requestData?: UnknownRecord) {
     this.logError({
       error,
       context: `API_CALL: ${endpoint}`,
-      additionalData: {
-        endpoint,
-        requestData,
-        responseError: error?.message || error
-      }
+      additionalData: { endpoint, requestData, responseError: error },
     });
   }
 
-  logSupabaseError(operation: string, error: any, table?: string) {
+  logSupabaseError(operation: string, error: unknown, table?: string) {
     this.logError({
       error,
       context: `SUPABASE: ${operation}`,
-      additionalData: {
-        operation,
-        table,
-        supabaseError: error
-      }
+      additionalData: { operation, table, supabaseError: error },
     });
   }
 
-  private async sendToLoggingService(logEntry: any) {
+  /* ---------------- private helpers ------------------------------ */
+  private async sendToLoggingService(entry: LogEntry) {
     try {
-      // This could be Sentry, LogRocket, or your own logging endpoint
-      await fetch('/api/logs', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(logEntry),
+      await fetch("/api/logs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(entry),
       });
     } catch (err) {
-      console.error('Failed to send error to logging service:', err);
+      // eslint-disable-next-line no-console
+      console.error("Failed to send error to logging service:", err);
     }
   }
 }
 
 export const errorLogger = ErrorLogger.getInstance();
 
-// Global error handler
-window.addEventListener('error', (event) => {
+/* ------------------------------------------------------------------ */
+/*  Global handlers                                                   */
+/* ------------------------------------------------------------------ */
+window.addEventListener("error", (evt) => {
   errorLogger.logError({
-    error: event.error || event.message,
-    context: 'GLOBAL_ERROR',
+    error: evt.error ?? evt.message,
+    context: "GLOBAL_ERROR",
     additionalData: {
-      filename: event.filename,
-      lineno: event.lineno,
-      colno: event.colno
-    }
+      filename: evt.filename,
+      lineno: evt.lineno,
+      colno: evt.colno,
+    },
   });
 });
 
-// Unhandled promise rejection handler
-window.addEventListener('unhandledrejection', (event) => {
+window.addEventListener("unhandledrejection", (evt) => {
   errorLogger.logError({
-    error: event.reason,
-    context: 'UNHANDLED_PROMISE_REJECTION'
+    error: evt.reason,
+    context: "UNHANDLED_PROMISE_REJECTION",
   });
 });

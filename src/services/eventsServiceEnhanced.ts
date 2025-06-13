@@ -1,220 +1,169 @@
+import { EventbriteService } from "./eventbrite";
+import { StandardizedEvent, EventFilters } from "@/types/events";
+import { removeDuplicateEvents } from "@/utils/eventUtils";
+import { supabase } from "@/integrations/supabase/client";
+import { BERLIN_AREAS } from "@/constants/berlin";
+import { errorLogger } from "@/utils/errorLogger";
 
-import { EventbriteService } from './eventbrite';
-import { StandardizedEvent, EventFilters } from '@/types/events';
-import { removeDuplicateEvents } from '@/utils/eventUtils';
-import { supabase } from '@/integrations/supabase/client';
-import { BERLIN_AREAS } from '@/constants/berlin';
-import { errorLogger } from '@/utils/errorLogger';
+/* ------------------------------------------------------------------ */
+/*  Types for local JSON entries                                      */
+/* ------------------------------------------------------------------ */
+interface LocalJsonEvent {
+  id: string;
+  title: string;
+  description?: string;
+  event_date: string;
+  location?: string;
+  image_url?: string;
+  category?: string;
+  tags?: string[];
+  source_url?: string;
+}
 
 export class EventsServiceEnhanced {
-  private eventbriteService: EventbriteService;
-
-  constructor() {
-    this.eventbriteService = new EventbriteService();
-  }
+  private eventbriteService = new EventbriteService();
 
   async fetchAllEvents(filters?: EventFilters): Promise<StandardizedEvent[]> {
-    const allEvents: StandardizedEvent[] = [];
+    const collected: StandardizedEvent[] = [];
 
     try {
-      console.log('Fetching events from all sources...');
-      
-      // Fetch from different sources with proper error handling
-      const sources = await Promise.allSettled([
+      const results = await Promise.allSettled([
         this.fetchFromSupabase(filters),
         this.fetchFromEventbrite(filters),
-        this.fetchFromLocalJSON(filters)
+        this.fetchFromLocalJSON(filters),          // filters now used
       ]);
 
-      sources.forEach((result, index) => {
-        const sourceName = ['Supabase', 'Eventbrite', 'LocalJSON'][index];
-        
-        if (result.status === 'fulfilled') {
-          console.log(`${sourceName} source returned ${result.value.length} events`);
-          allEvents.push(...result.value);
-        } else {
-          console.error(`${sourceName} source failed:`, result.reason);
-          errorLogger.logAPIError(`fetch_${sourceName.toLowerCase()}`, result.reason);
-        }
+      ["Supabase", "Eventbrite", "LocalJSON"].forEach((name, i) => {
+        const r = results[i];
+        if (r.status === "fulfilled") collected.push(...r.value);
+        else errorLogger.logAPIError(`fetch_${name.toLowerCase()}`, r.reason);
       });
 
-      // Remove duplicates and apply filters
-      const uniqueEvents = removeDuplicateEvents(allEvents);
-      const filteredEvents = this.applyFilters(uniqueEvents, filters);
-      
-      console.log(`Returning ${filteredEvents.length} events after deduplication and filtering`);
-      return filteredEvents;
-      
-    } catch (error) {
-      console.error('Error in fetchAllEvents:', error);
+      return this.applyFilters(removeDuplicateEvents(collected), filters);
+    } catch (err) {
       errorLogger.logError({
-        error: error as Error,
-        context: 'FETCH_ALL_EVENTS',
-        additionalData: { filters }
+        error: err as Error,
+        context: "FETCH_ALL_EVENTS",
+        additionalData: { filters },
       });
-      throw error;
+      throw err;
     }
   }
 
+  /* ---------------- Supabase ------------------------------------------ */
   private async fetchFromSupabase(filters?: EventFilters): Promise<StandardizedEvent[]> {
     try {
-      console.log('Fetching from Supabase with filters:', filters);
-      
-      let query = supabase
-        .from('berlin_events')
-        .select('*')
-        .order('event_date', { ascending: true });
+      let q = supabase.from("berlin_events").select("*").order("event_date");
+      if (filters?.date) q = q.eq("event_date", filters.date);
 
-      if (filters?.date) {
-        query = query.eq('event_date', filters.date);
-      }
+      const { data, error } = await q;
+      if (error) throw error;
 
-      const { data, error } = await query;
-      
-      if (error) {
-        errorLogger.logSupabaseError('fetchFromSupabase', error, 'berlin_events');
-        throw error;
-      }
-
-      const events = (data || []).map(event => ({
-        id: event.id,
-        title: event.title,
-        description: event.description,
-        event_date: event.event_date,
-        location: event.location,
-        image_url: event.image_url,
-        category: event.category,
-        tags: event.tags || [],
-        source_url: event.source_url,
-        source: 'database' as const
+      return (data || []).map((e) => ({
+        id: e.id,
+        title: e.title,
+        description: e.description,
+        event_date: e.event_date,
+        location: e.location,
+        image_url: e.image_url,
+        category: e.category,
+        tags: e.tags || [],
+        source_url: e.source_url,
+        source: "database" as const,
       }));
-
-      console.log(`Fetched ${events.length} events from Supabase`);
-      return events;
-      
-    } catch (error) {
-      console.error('Failed to fetch from Supabase:', error);
-      errorLogger.logSupabaseError('fetchFromSupabase', error, 'berlin_events');
+    } catch (err) {
+      errorLogger.logSupabaseError("fetchFromSupabase", err, "berlin_events");
       return [];
     }
   }
 
+  /* ---------------- Eventbrite ---------------------------------------- */
   private async fetchFromEventbrite(filters?: EventFilters): Promise<StandardizedEvent[]> {
     try {
-      console.log('Fetching from Eventbrite with area:', filters?.area);
-      const events = await this.eventbriteService.fetchBerlinEvents(filters?.area);
-      console.log(`Fetched ${events.length} events from Eventbrite`);
-      return events;
-    } catch (error) {
-      console.error('Failed to fetch from Eventbrite:', error);
-      errorLogger.logAPIError('fetchFromEventbrite', error, { area: filters?.area });
+      return await this.eventbriteService.fetchBerlinEvents(filters?.area);
+    } catch (err) {
+      errorLogger.logAPIError("fetchFromEventbrite", err, { area: filters?.area });
       return [];
     }
   }
 
+  /* ---------------- Local JSON ---------------------------------------- */
   private async fetchFromLocalJSON(filters?: EventFilters): Promise<StandardizedEvent[]> {
     try {
-      console.log('Fetching from local JSON...');
-      const response = await fetch('/events.json');
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      const events = data.map((event: any) => ({
-        id: event.id,
-        title: event.title,
-        description: event.description,
-        event_date: event.event_date,
-        location: event.location,
-        image_url: event.image_url || null,
-        category: event.category || null,
-        tags: event.tags || [],
-        source_url: event.source_url || null,
-        source: 'local' as const
+      const res = await fetch("/events.json");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const raw: LocalJsonEvent[] = await res.json();
+      let events: StandardizedEvent[] = raw.map((e) => ({
+        id: e.id,
+        title: e.title,
+        description: e.description ?? null,
+        event_date: e.event_date,
+        location: e.location ?? null,
+        image_url: e.image_url ?? null,
+        category: e.category ?? null,
+        tags: e.tags ?? [],
+        source_url: e.source_url ?? null,
+        source: "local" as const,
       }));
 
-      console.log(`Fetched ${events.length} events from local JSON`);
+      /* --- apply minimal filters so `filters` is used here ------------- */
+      if (filters?.area) {
+        events = events.filter((e) =>
+          e.location?.toLowerCase().includes(filters.area!.toLowerCase())
+        );
+      }
+      if (filters?.date) events = events.filter((e) => e.event_date === filters.date);
+
       return events;
-      
-    } catch (error) {
-      console.error('Failed to fetch from local JSON:', error);
-      errorLogger.logAPIError('fetchFromLocalJSON', error);
+    } catch (err) {
+      errorLogger.logAPIError("fetchFromLocalJSON", err);
       return [];
     }
   }
 
-  private applyFilters(events: StandardizedEvent[], filters?: EventFilters): StandardizedEvent[] {
-    if (!filters) return events;
+  /* ---------------- In-memory filtering ------------------------------- */
+  private applyFilters(list: StandardizedEvent[], f?: EventFilters): StandardizedEvent[] {
+    if (!f) return list;
 
-    try {
-      return events.filter(event => {
-        if (filters.date && event.event_date !== filters.date) return false;
-        if (filters.category && event.category !== filters.category) return false;
-        if (filters.tags && filters.tags.length > 0) {
-          const hasMatchingTag = filters.tags.some(tag =>
-            event.tags.includes(tag) ||
-            event.title.toLowerCase().includes(tag.toLowerCase()) ||
-            event.description?.toLowerCase().includes(tag.toLowerCase()) ||
-            event.category?.toLowerCase().includes(tag.toLowerCase())
-          );
-          if (!hasMatchingTag) return false;
-        }
-        if (filters.search) {
-          const searchTerm = filters.search.toLowerCase();
-          const matchesSearch = 
-            event.title.toLowerCase().includes(searchTerm) ||
-            event.description?.toLowerCase().includes(searchTerm) ||
-            event.location?.toLowerCase().includes(searchTerm);
-          if (!matchesSearch) return false;
-        }
-        return true;
-      });
-    } catch (error) {
-      console.error('Error applying filters:', error);
-      errorLogger.logError({
-        error: error as Error,
-        context: 'APPLY_FILTERS',
-        additionalData: { filters, eventCount: events.length }
-      });
-      return events; // Return unfiltered events if filtering fails
-    }
+    return list.filter((e) => {
+      if (f.date && e.event_date !== f.date) return false;
+      if (f.category && e.category !== f.category) return false;
+
+      if (f.tags?.length) {
+        const ok = f.tags.some(
+          (t) =>
+            e.tags.includes(t) ||
+            e.title.toLowerCase().includes(t.toLowerCase()) ||
+            e.description?.toLowerCase().includes(t.toLowerCase()) ||
+            e.category?.toLowerCase().includes(t.toLowerCase())
+        );
+        if (!ok) return false;
+      }
+
+      if (f.search) {
+        const s = f.search.toLowerCase();
+        const hit =
+          e.title.toLowerCase().includes(s) ||
+          e.description?.toLowerCase().includes(s) ||
+          e.location?.toLowerCase().includes(s);
+        if (!hit) return false;
+      }
+      return true;
+    });
   }
 
-  async getEventsByDate(date: string, area?: string): Promise<StandardizedEvent[]> {
-    try {
-      return await this.fetchAllEvents({ date, area });
-    } catch (error) {
-      console.error('Error getting events by date:', error);
-      errorLogger.logError({
-        error: error as Error,
-        context: 'GET_EVENTS_BY_DATE',
-        additionalData: { date, area }
-      });
-      return [];
-    }
+  /* ---------------- Convenience helpers ------------------------------- */
+  async getEventsByDate(date: string, area?: string) {
+    return this.fetchAllEvents({ date, area });
   }
 
-  async getEventsByDateRange(startDate: string, endDate: string, area?: string): Promise<StandardizedEvent[]> {
-    try {
-      const allEvents = await this.fetchAllEvents({ area });
-      return allEvents.filter(event => 
-        event.event_date >= startDate && event.event_date <= endDate
-      );
-    } catch (error) {
-      console.error('Error getting events by date range:', error);
-      errorLogger.logError({
-        error: error as Error,
-        context: 'GET_EVENTS_BY_DATE_RANGE',
-        additionalData: { startDate, endDate, area }
-      });
-      return [];
-    }
+  async getEventsByDateRange(start: string, end: string, area?: string) {
+    const all = await this.fetchAllEvents({ area });
+    return all.filter((e) => e.event_date >= start && e.event_date <= end);
   }
 
-  getBerlinAreas(): string[] {
+  getBerlinAreas() {
     return BERLIN_AREAS;
   }
 }

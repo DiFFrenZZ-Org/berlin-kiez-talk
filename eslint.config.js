@@ -1,33 +1,39 @@
+// eslint.config.js  – flat config
+
 import js from "@eslint/js";
 import globals from "globals";
+import * as tseslint from "typescript-eslint";
 import react from "eslint-plugin-react";
 import reactHooks from "eslint-plugin-react-hooks";
-import reactRefresh from "eslint-plugin-react-refresh";
-import tseslint from "typescript-eslint";
 
-export default tseslint.config(
-  { ignores: ["dist"] },
+export default [
+  /* ------------------------------------------------ JS base ------------- */
   {
-    extends: [js.configs.recommended, ...tseslint.configs.recommended, react.configs.recommended],
-    files: ["**/*.{ts,tsx}"],
+    ...js.configs.recommended,
+    files: ["**/*.{js,mjs,cjs}"],
     languageOptions: {
-      ecmaVersion: 2020,
-      globals: globals.browser,
+      globals: { ...globals.browser, ...globals.node },
     },
-    plugins: {
-      react,
-      "react-hooks": reactHooks,
-      "react-refresh": reactRefresh,
-    },
+  },
+
+  /* ------------------------------------------------ TS rules ------------ */
+  ...tseslint.configs.recommended, // applies to **/*.ts,tsx by default
+
+  /* ------------------------------------------------ React + hooks ------- */
+  {
+    files: ["**/*.{jsx,tsx}"],
+    plugins: { react, "react-hooks": reactHooks },
     rules: {
+      // keep all recommended React rules …
       ...react.configs.recommended.rules,
-      ...reactHooks.configs.recommended.rules,
-      "react-refresh/only-export-components": [
-        "warn",
-        { allowConstantExport: true },
-      ],
-      // Disable rule causing errors with current eslint version
-      "@typescript-eslint/no-unused-expressions": "off",
+
+      // modern JSX transform → no import React
+      "react/react-in-jsx-scope": "off",
+      "react/prop-types": "off", // no prop-types in TS
+
+      // hook correctness
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
     },
-  }
-);
+  },
+];
