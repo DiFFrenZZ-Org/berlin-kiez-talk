@@ -39,8 +39,8 @@ class ErrorLogger {
   /* ---------------- public API ------------------------------------ */
   logError({ error, context = "Unknown", userId, additionalData }: ErrorLogData) {
     const timestamp = new Date().toISOString();
-    const msg = isError(error) ? error.message : String(error);
-    const stack = isError(error) ? error.stack : undefined;
+    const msg   = isError(error) ? error.message : String(error);
+    const stack = isError(error) ? error.stack   : undefined;
 
     const entry: LogEntry = {
       timestamp,
@@ -53,11 +53,10 @@ class ErrorLogger {
       url: window.location.href,
     };
 
-    /* dev console -------------------------------------------------- */
-    // eslint-disable-next-line no-console
+    /* Development console ------------------------------------------ */
     console.error(`[${timestamp}] ${context}:`, entry);
 
-    /* prod sink ---------------------------------------------------- */
+    /* Production sink ---------------------------------------------- */
     if (import.meta.env.PROD) void this.sendToLoggingService(entry);
   }
 
@@ -86,7 +85,6 @@ class ErrorLogger {
         body: JSON.stringify(entry),
       });
     } catch (err) {
-      // eslint-disable-next-line no-console
       console.error("Failed to send error to logging service:", err);
     }
   }
