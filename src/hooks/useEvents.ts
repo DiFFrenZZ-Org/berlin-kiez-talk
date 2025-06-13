@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { EventsService } from '@/services/eventsService';
 import { StandardizedEvent, EventFilters } from '@/types/events';
 
@@ -10,14 +10,29 @@ export const useEvents = () => {
   const [selectedEvent, setSelectedEvent] = useState<StandardizedEvent | null>(null);
 
   const eventsService = new EventsService();
+  const cacheRef = useRef<Record<string, StandardizedEvent[]>>({});
 
   const loadEvents = async (filters?: EventFilters) => {
+    const key = filters?.date
+      ? `d:${filters.date}-a:${filters.area ?? 'all'}`
+      : 'all';
+
+    if (cacheRef.current[key]) {
+      setEvents(cacheRef.current[key]);
+      setFilteredEvents(cacheRef.current[key]);
+      if (!selectedEvent && cacheRef.current[key].length > 0) {
+        setSelectedEvent(cacheRef.current[key][0]);
+      }
+      return;
+    }
+
     setLoading(true);
     try {
       const allEvents = await eventsService.fetchAllEvents(filters);
+      cacheRef.current[key] = allEvents;
       setEvents(allEvents);
       setFilteredEvents(allEvents);
-      
+
       // Auto-select first event if none selected
       if (allEvents.length > 0 && !selectedEvent) {
         setSelectedEvent(allEvents[0]);

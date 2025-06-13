@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +11,14 @@ import { Calendar as CalendarIcon, MapPin } from "lucide-react";
 
 export const EnhancedEventsCalendar = () => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const { events, loading, selectedEvent, setSelectedEvent } = useEvents();
+  const { events, loading, selectedEvent, setSelectedEvent, loadEvents } = useEvents();
+
+  useEffect(() => {
+    const dateStr = selectedDate
+      ? selectedDate.toISOString().split('T')[0]
+      : undefined;
+    loadEvents(dateStr ? { date: dateStr } : undefined);
+  }, [selectedDate]);
   
   // Get events for the selected date
   const getEventsForDate = (date: Date | undefined): StandardizedEvent[] => {
