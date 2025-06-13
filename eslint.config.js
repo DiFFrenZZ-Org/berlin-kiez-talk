@@ -27,13 +27,6 @@ export default [
       // keep all recommended React rules …
       ...react.configs.recommended.rules,
 
-      // modern JSX transform → no import React
-      "react/react-in-jsx-scope": "off",
-      "react/prop-types": "off", // no prop-types in TS
-
-      // hook correctness
-      "react-hooks/rules-of-hooks": "error",
-      "react-hooks/exhaustive-deps": "warn",
     },
   },
 ];
