@@ -30,15 +30,19 @@ export const EnhancedEventsCalendar = () => {
     selectedEvent,
     setSelectedEvent,
     loadEvents,
+    loadEventsByDateRange,
     filterEvents,
   } = useEvents();
 
   useEffect(() => {
-    const dateStr = selectedDate
-      ? selectedDate.toISOString().split('T')[0]
-      : undefined;
-    loadEvents({
-      date: dateStr,
+    if (!selectedDate) return;
+    const start = selectedDate.toISOString().split('T')[0];
+    const endDate = new Date(selectedDate);
+    endDate.setDate(selectedDate.getDate() + 7);
+    const end = endDate.toISOString().split('T')[0];
+    loadEventsByDateRange({
+      start,
+      end,
       area: selectedArea !== 'all_areas' ? selectedArea : undefined,
     });
   }, [selectedDate, selectedArea]);
@@ -65,7 +69,7 @@ export const EnhancedEventsCalendar = () => {
     return events
       .filter(event => event.event_date)
       .map(event => new Date(event.event_date!))
-      .filter((date, index, self) =>
+      .filter((date, index, self) => 
         index === self.findIndex(d => d.toDateString() === date.toDateString())
       );
   };
@@ -212,7 +216,7 @@ export const EnhancedEventsCalendar = () => {
 
         {/* Upcoming Events - 4 columns */}
         <div className="lg:col-span-4 overflow-hidden">
-          <UpcomingEvents
+          <UpcomingEvents 
             events={events}
             selectedEvent={selectedEvent}
             onEventSelect={setSelectedEvent}
@@ -283,7 +287,7 @@ export const EnhancedEventsCalendar = () => {
         />
 
         {/* Upcoming Events */}
-        <UpcomingEvents
+        <UpcomingEvents 
           events={events}
           selectedEvent={selectedEvent}
           onEventSelect={setSelectedEvent}

@@ -73,6 +73,43 @@ export const useEvents = () => {
     }
   };
 
+  /** Load events within a specific date range */
+  const loadEventsByDateRange = async (opts: {
+    start: string;
+    end: string;
+    area?: string;
+  }) => {
+    const key = `dr:${opts.start}-${opts.end}-a:${opts.area ?? 'all'}`;
+    if (cacheRef.current[key]) {
+      setEvents(cacheRef.current[key]);
+      setFilteredEvents(cacheRef.current[key]);
+      if (!selectedEvent && cacheRef.current[key].length > 0) {
+        setSelectedEvent(cacheRef.current[key][0]);
+      }
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const rangeEvents = await eventsService.getEventsByDateRange(
+        opts.start,
+        opts.end,
+        opts.area,
+      );
+      cacheRef.current[key] = rangeEvents;
+      setEvents(rangeEvents);
+      setFilteredEvents(rangeEvents);
+
+      if (rangeEvents.length > 0 && !selectedEvent) {
+        setSelectedEvent(rangeEvents[0]);
+      }
+    } catch (err) {
+      console.error('Failed to load events in range', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filterEvents = (filters: {
     searchTerm?: string;
     selectedTags?: string[];
@@ -129,6 +166,7 @@ export const useEvents = () => {
     selectedEvent,
     setSelectedEvent,
     loadEvents,
+    loadEventsByDateRange,
     filterEvents,
     getEventCountForDate,
   };
