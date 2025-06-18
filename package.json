@@ -84,7 +84,7 @@
     "cheerio": "^1.1.0",
     "eslint": "^9.28.0",
     "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-hooks": "^6.1.0",
+    "eslint-plugin-react-hooks": "^6.0.0-rc.1",
     "eslint-plugin-react-refresh": "^0.4.9",
     "globals": "^16.2.0",
     "husky": "^9.0.11",

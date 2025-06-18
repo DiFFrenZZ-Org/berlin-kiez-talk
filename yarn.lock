@@ -3216,10 +3216,10 @@ escape-string-regexp@^4.0.0:
   resolved "https://registry.yarnpkg.com/escape-string-regexp/-/escape-string-regexp-4.0.0.tgz#14ba83a5d373e3d311e5afca29cf5bfad965bf34"
   integrity sha512-TtpcNJ3XAzx3Gq8sWRzJaVajRs0uVxA2YAkdb1jm2YkPz4G6egUFAyA3n5vtEIZefPk5Wa4UXbKuS5fKkJWdgA==
 
-eslint-plugin-react-hooks@^6.1.0:
-  version "6.1.0-canary-f9ae0a4c-20250527"
-  resolved "https://registry.yarnpkg.com/eslint-plugin-react-hooks/-/eslint-plugin-react-hooks-6.1.0-canary-f9ae0a4c-20250527.tgz#d1f489d47455b4809d213851c8e0962cc120f07c"
-  integrity sha512-uwnqeI2hEPHayPKpDrJNzv9Z0wKgfZItKOp9230doYg8tVvhx3WLXJ5jYngIYYeazzeH+AyngkHY+1DIvCC4rA==
+eslint-plugin-react-hooks@^6.0.0-rc.1:
+  version "6.0.0"
+  resolved "https://registry.yarnpkg.com/eslint-plugin-react-hooks/-/eslint-plugin-react-hooks-6.0.0.tgz#8677408c9a21251a776ce6da6369e072080a87fb"
+  integrity sha512-NyC3yIC9fazLitYiN8eHykV5wLp/SMuUZMh+sdPSHIeN4ReXIc7if40jtGjDplAgVL/4OkN1d9gneWe9lFZgag==
   dependencies:
     "@babel/core" "^7.24.4"
     "@babel/parser" "^7.24.4"
