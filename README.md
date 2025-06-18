@@ -37,13 +37,19 @@ cd <YOUR_PROJECT_NAME>
 cat <<EOF > .env
 VITE_SUPABASE_URL=<YOUR_SUPABASE_URL>
 VITE_SUPABASE_ANON_KEY=<YOUR_SUPABASE_ANON_KEY>
+EVENTBRITE_CLIENT_ID=<YOUR_EVENTBRITE_CLIENT_ID>
+EVENTBRITE_CLIENT_SECRET=<YOUR_EVENTBRITE_CLIENT_SECRET>
+EVENTBRITE_REFRESH_TOKEN=<YOUR_EVENTBRITE_REFRESH_TOKEN>
 EOF
 
 
 # Step 4: Install the necessary dependencies.
 npm i
 
-# Step 5: Start the development server with auto-reloading and an instant preview.
+# Step 5: Start the backend API.
+npm run server &
+
+# Step 6: Start the development server with auto-reloading and an instant preview.
 npm run dev
 ```
 
