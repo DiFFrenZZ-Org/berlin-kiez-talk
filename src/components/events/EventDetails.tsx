@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StandardizedEvent } from '@/types/events';
-import { formatEventDate } from '@/utils/eventUtils';
+import { formatEventDate } from '@/utils/dateUtils';
 
 interface EventDetailsProps {
   selectedEvent: StandardizedEvent | null;
