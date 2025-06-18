@@ -62,10 +62,10 @@ export const EnhancedEventsCalendar = () => {
 
   // Get dates that have events for calendar highlighting
   const getDatesWithEvents = (): Date[] => {
-    return events
-      .filter(event => event.event_date)
-      .map(event => new Date(event.event_date!))
-      .filter((date, index, self) => 
+    return filteredEvents
+      .filter((event) => event.event_date)
+      .map((event) => new Date(event.event_date!))
+      .filter((date, index, self) =>
         index === self.findIndex(d => d.toDateString() === date.toDateString())
       );
   };
@@ -212,8 +212,8 @@ export const EnhancedEventsCalendar = () => {
 
         {/* Upcoming Events - 4 columns */}
         <div className="lg:col-span-4 overflow-hidden">
-          <UpcomingEvents 
-            events={events}
+          <UpcomingEvents
+            events={filteredEvents}
             selectedEvent={selectedEvent}
             onEventSelect={setSelectedEvent}
             loading={loading}
@@ -283,8 +283,8 @@ export const EnhancedEventsCalendar = () => {
         />
 
         {/* Upcoming Events */}
-        <UpcomingEvents 
-          events={events}
+        <UpcomingEvents
+          events={filteredEvents}
           selectedEvent={selectedEvent}
           onEventSelect={setSelectedEvent}
           loading={loading}
