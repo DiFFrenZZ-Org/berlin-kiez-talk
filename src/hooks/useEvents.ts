@@ -3,6 +3,14 @@ import { useState, useRef } from 'react';
 import { EventsService } from '@/services/eventsService';
 import { StandardizedEvent, EventFilters } from '@/types/events';
 
+const CACHE_PREFIX = 'eventsCache:';
+const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+interface StoredEvents {
+  timestamp: number;
+  data: StandardizedEvent[];
+}
+
 export const useEvents = () => {
   const [events, setEvents] = useState<StandardizedEvent[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<StandardizedEvent[]>([]);
@@ -12,16 +20,46 @@ export const useEvents = () => {
   const eventsService = new EventsService();
   const cacheRef = useRef<Record<string, StandardizedEvent[]>>({});
 
+  const loadFromStorage = (key: string) => {
+    if (typeof localStorage === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem(`${CACHE_PREFIX}${key}`);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as StoredEvents;
+      if (Date.now() - parsed.timestamp < CACHE_TTL) {
+        cacheRef.current[key] = parsed.data;
+        return parsed.data;
+      }
+      localStorage.removeItem(`${CACHE_PREFIX}${key}`);
+    } catch (err) {
+      console.error('Failed to parse cached events', err);
+    }
+    return null;
+  };
+
+  const saveToStorage = (key: string, data: StandardizedEvent[]) => {
+    if (typeof localStorage === 'undefined') return;
+    try {
+      const payload: StoredEvents = { timestamp: Date.now(), data };
+      localStorage.setItem(`${CACHE_PREFIX}${key}`, JSON.stringify(payload));
+    } catch (err) {
+      console.error('Failed to save events to localStorage', err);
+    }
+  };
+
   const loadEvents = async (filters?: EventFilters) => {
     const key = filters?.date
       ? `d:${filters.date}-a:${filters.area ?? 'all'}`
       : 'all';
 
-    if (cacheRef.current[key]) {
-      setEvents(cacheRef.current[key]);
-      setFilteredEvents(cacheRef.current[key]);
-      if (!selectedEvent && cacheRef.current[key].length > 0) {
-        setSelectedEvent(cacheRef.current[key][0]);
+    let cached = cacheRef.current[key];
+    if (!cached) cached = loadFromStorage(key) ?? undefined;
+
+    if (cached) {
+      setEvents(cached);
+      setFilteredEvents(cached);
+      if (!selectedEvent && cached.length > 0) {
+        setSelectedEvent(cached[0]);
       }
       return;
     }
@@ -30,6 +68,7 @@ export const useEvents = () => {
     try {
       const allEvents = await eventsService.fetchAllEvents(filters);
       cacheRef.current[key] = allEvents;
+      saveToStorage(key, allEvents);
       setEvents(allEvents);
       setFilteredEvents(allEvents);
 
