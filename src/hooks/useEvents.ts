@@ -1,7 +1,7 @@
 
 import { useState, useRef } from 'react';
 import { EventsService } from '@/services/eventsService';
-import { StandardizedEvent, EventFilters } from '@/types/events';
+import { StandardizedEvent } from '@/types/events';
 
 export const useEvents = () => {
   const [events, setEvents] = useState<StandardizedEvent[]>([]);
@@ -12,10 +12,9 @@ export const useEvents = () => {
   const eventsService = new EventsService();
   const cacheRef = useRef<Record<string, StandardizedEvent[]>>({});
 
-  const loadEvents = async (filters?: EventFilters) => {
-    const key = filters?.date
-      ? `d:${filters.date}-a:${filters.area ?? 'all'}`
-      : 'all';
+  const loadEvents = async (date?: Date) => {
+    const dateStr = date ? date.toISOString().split('T')[0] : undefined;
+    const key = dateStr ? `d:${dateStr}-a:all` : 'all';
 
     if (cacheRef.current[key]) {
       setEvents(cacheRef.current[key]);
@@ -28,7 +27,9 @@ export const useEvents = () => {
 
     setLoading(true);
     try {
-      const allEvents = await eventsService.fetchAllEvents(filters);
+      const allEvents = await eventsService.fetchAllEvents(
+        dateStr ? { date: dateStr } : undefined,
+      );
       cacheRef.current[key] = allEvents;
       setEvents(allEvents);
       setFilteredEvents(allEvents);
@@ -36,6 +37,23 @@ export const useEvents = () => {
       // Auto-select first event if none selected
       if (allEvents.length > 0 && !selectedEvent) {
         setSelectedEvent(allEvents[0]);
+      }
+
+      if (date) {
+        for (let i = 1; i <= 2; i++) {
+          const prefetchDate = new Date(date);
+          prefetchDate.setDate(prefetchDate.getDate() + i);
+          const prefetchStr = prefetchDate.toISOString().split('T')[0];
+          const prefetchKey = `d:${prefetchStr}-a:all`;
+          if (!cacheRef.current[prefetchKey]) {
+            try {
+              const prefetchEvents = await eventsService.fetchAllEvents({ date: prefetchStr });
+              cacheRef.current[prefetchKey] = prefetchEvents;
+            } catch (err) {
+              console.error('Failed to prefetch events', err);
+            }
+          }
+        }
       }
     } catch (err) {
       console.error('Failed to load events', err);

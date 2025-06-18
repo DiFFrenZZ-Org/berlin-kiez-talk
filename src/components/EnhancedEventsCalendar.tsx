@@ -14,10 +14,7 @@ export const EnhancedEventsCalendar = () => {
   const { events, loading, selectedEvent, setSelectedEvent, loadEvents } = useEvents();
 
   useEffect(() => {
-    const dateStr = selectedDate
-      ? selectedDate.toISOString().split('T')[0]
-      : undefined;
-    loadEvents(dateStr ? { date: dateStr } : undefined);
+    loadEvents(selectedDate);
   }, [selectedDate]);
   
   // Get events for the selected date
