@@ -30,15 +30,19 @@ export const EnhancedEventsCalendar = () => {
     selectedEvent,
     setSelectedEvent,
     loadEvents,
+    loadEventsByDateRange,
     filterEvents,
   } = useEvents();
 
   useEffect(() => {
-    const dateStr = selectedDate
-      ? selectedDate.toISOString().split('T')[0]
-      : undefined;
-    loadEvents({
-      date: dateStr,
+    if (!selectedDate) return;
+    const start = selectedDate.toISOString().split('T')[0];
+    const endDate = new Date(selectedDate);
+    endDate.setDate(selectedDate.getDate() + 7);
+    const end = endDate.toISOString().split('T')[0];
+    loadEventsByDateRange({
+      start,
+      end,
       area: selectedArea !== 'all_areas' ? selectedArea : undefined,
     });
   }, [selectedDate, selectedArea]);
