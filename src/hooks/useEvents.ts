@@ -1,4 +1,3 @@
-
 import { useState, useRef } from 'react';
 import { EventsService } from '@/services/eventsService';
 import { StandardizedEvent, EventFilters } from '@/types/events';
@@ -7,10 +6,36 @@ export const useEvents = () => {
   const [events, setEvents] = useState<StandardizedEvent[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<StandardizedEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedEvent, setSelectedEvent] = useState<StandardizedEvent | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<StandardizedEvent | null>(
+    null
+  );
 
   const eventsService = new EventsService();
   const cacheRef = useRef<Record<string, StandardizedEvent[]>>({});
+
+  /** Prefetch events for the next three days and store them in cache */
+  const prefetchAdjacentDays = async (
+    date: string,
+    area?: string
+  ): Promise<void> => {
+    const base = new Date(date);
+    for (let i = 1; i <= 3; i++) {
+      const next = new Date(base);
+      next.setDate(base.getDate() + i);
+      const dateStr = next.toISOString().split('T')[0];
+      const key = `d:${dateStr}-a:${area ?? 'all'}`;
+      if (cacheRef.current[key]) continue;
+      try {
+        const events = await eventsService.fetchAllEvents({
+          date: dateStr,
+          area,
+        });
+        cacheRef.current[key] = events;
+      } catch (err) {
+        console.error('Prefetch failed', err);
+      }
+    }
+  };
 
   const loadEvents = async (filters?: EventFilters) => {
     const key = filters?.date
@@ -37,6 +62,10 @@ export const useEvents = () => {
       if (allEvents.length > 0 && !selectedEvent) {
         setSelectedEvent(allEvents[0]);
       }
+
+      if (filters?.date) {
+        prefetchAdjacentDays(filters.date, filters.area);
+      }
     } catch (err) {
       console.error('Failed to load events', err);
     } finally {
@@ -51,35 +80,46 @@ export const useEvents = () => {
     let filtered = events;
 
     if (filters.searchTerm) {
-      filtered = filtered.filter(event =>
-        event.title.toLowerCase().includes(filters.searchTerm!.toLowerCase()) ||
-        event.description?.toLowerCase().includes(filters.searchTerm!.toLowerCase()) ||
-        event.location?.toLowerCase().includes(filters.searchTerm!.toLowerCase())
+      filtered = filtered.filter(
+        (event) =>
+          event.title
+            .toLowerCase()
+            .includes(filters.searchTerm!.toLowerCase()) ||
+          event.description
+            ?.toLowerCase()
+            .includes(filters.searchTerm!.toLowerCase()) ||
+          event.location
+            ?.toLowerCase()
+            .includes(filters.searchTerm!.toLowerCase())
       );
     }
 
     if (filters.selectedTags && filters.selectedTags.length > 0) {
-      filtered = filtered.filter(event =>
-        filters.selectedTags!.some(tag =>
-          event.tags?.includes(tag) ||
-          event.title.toLowerCase().includes(tag.toLowerCase()) ||
-          event.description?.toLowerCase().includes(tag.toLowerCase()) ||
-          event.category?.toLowerCase().includes(tag.toLowerCase())
+      filtered = filtered.filter((event) =>
+        filters.selectedTags!.some(
+          (tag) =>
+            event.tags?.includes(tag) ||
+            event.title.toLowerCase().includes(tag.toLowerCase()) ||
+            event.description?.toLowerCase().includes(tag.toLowerCase()) ||
+            event.category?.toLowerCase().includes(tag.toLowerCase())
         )
       );
     }
 
     setFilteredEvents(filtered);
-    
+
     // Auto-select first event if current selection is not in filtered results
-    if (filtered.length > 0 && (!selectedEvent || !filtered.find(e => e.id === selectedEvent.id))) {
+    if (
+      filtered.length > 0 &&
+      (!selectedEvent || !filtered.find((e) => e.id === selectedEvent.id))
+    ) {
       setSelectedEvent(filtered[0]);
     }
   };
 
   const getEventCountForDate = (date: Date) => {
     const dateStr = date.toISOString().split('T')[0];
-    return events.filter(event => event.event_date === dateStr).length;
+    return events.filter((event) => event.event_date === dateStr).length;
   };
 
   return {
@@ -90,6 +130,6 @@ export const useEvents = () => {
     setSelectedEvent,
     loadEvents,
     filterEvents,
-    getEventCountForDate
+    getEventCountForDate,
   };
 };
