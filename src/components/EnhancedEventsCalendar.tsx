@@ -42,7 +42,7 @@ export const EnhancedEventsCalendar = () => {
       area: selectedArea !== 'all_areas' ? selectedArea : undefined,
     });
   }, [selectedDate, selectedArea]);
-  
+
   useEffect(() => {
     filterEvents({ searchTerm, selectedTags });
   }, [searchTerm, selectedTags, events]);
@@ -65,7 +65,7 @@ export const EnhancedEventsCalendar = () => {
     return events
       .filter(event => event.event_date)
       .map(event => new Date(event.event_date!))
-      .filter((date, index, self) => 
+      .filter((date, index, self) =>
         index === self.findIndex(d => d.toDateString() === date.toDateString())
       );
   };
@@ -118,7 +118,7 @@ export const EnhancedEventsCalendar = () => {
                 hasEvents: "bg-green-500/30 border border-green-400/50 font-semibold",
               }}
             />
-            
+
             {/* Legend */}
             <div className="mt-4 space-y-2 text-xs">
               <div className="flex items-center space-x-2">
@@ -142,11 +142,11 @@ export const EnhancedEventsCalendar = () => {
           <CardHeader className="pb-4">
             <CardTitle className="text-lg">
               {selectedDate ? (
-                <>Events for {selectedDate.toLocaleDateString('en-US', { 
-                  weekday: 'long', 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
+                <>Events for {selectedDate.toLocaleDateString('en-US', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
                 })}</>
               ) : (
                 'Select a Date'
@@ -176,20 +176,20 @@ export const EnhancedEventsCalendar = () => {
                     <h4 className="font-semibold text-white mb-2 line-clamp-2">
                       {event.title}
                     </h4>
-                    
+
                     {event.location && (
                       <div className="flex items-center space-x-2 text-sm text-blue-300 mb-2">
                         <MapPin className="h-4 w-4" />
                         <span className="truncate">{event.location}</span>
                       </div>
                     )}
-                    
+
                     {event.description && (
                       <p className="text-sm text-gray-300 line-clamp-3 mb-3">
                         {event.description}
                       </p>
                     )}
-                    
+
                     {event.category && (
                       <Badge variant="outline" className="text-xs bg-blue-600/20 border-blue-400/30">
                         {event.category}
@@ -212,7 +212,7 @@ export const EnhancedEventsCalendar = () => {
 
         {/* Upcoming Events - 4 columns */}
         <div className="lg:col-span-4 overflow-hidden">
-          <UpcomingEvents 
+          <UpcomingEvents
             events={events}
             selectedEvent={selectedEvent}
             onEventSelect={setSelectedEvent}
@@ -283,7 +283,7 @@ export const EnhancedEventsCalendar = () => {
         />
 
         {/* Upcoming Events */}
-        <UpcomingEvents 
+        <UpcomingEvents
           events={events}
           selectedEvent={selectedEvent}
           onEventSelect={setSelectedEvent}

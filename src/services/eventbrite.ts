@@ -27,48 +27,44 @@ interface EventbriteSearchResponse {
 /* ------------------------------------------------------------------ */
 
 export class EventbriteService {
-  private baseUrl = "https://www.eventbriteapi.com/v3";
-  private token = import.meta.env.VITE_EVENTBRITE_PRIVATE_TOKEN;
+private readonly baseUrl = "https://www.eventbriteapi.com/v3";
+private readonly token   = import.meta.env.VITE_EVENTBRITE_PRIVATE_TOKEN;
 
-  /** Fetch events happening in Berlin via Eventbrite Search API */
-  async fetchBerlinEvents(
-    area?: string,
-    page = 1,
-    pageSize = 50
-  ): Promise<StandardizedEvent[]> {
-    if (!this.token) {
-      console.warn("Eventbrite token missing – using local fallback.");
-      return this.readLocalEvents(area);
-    }
-
-    const searchParams = new URLSearchParams({
-      "location.address": "Berlin",
-      "expand": "venue",
-      "page": String(page),
-      "page_size": String(pageSize),
-    });
-
-    try {
-      const res = await fetch(`${this.baseUrl}/events/search/?${searchParams}`, {
-        headers: { Authorization: `Bearer ${this.token}` },
-      });
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-      const json: EventbriteSearchResponse = await res.json();
-      let events = this.standardizeEventbriteEvents(json.events);
-
-      if (area) {
-        events = events.filter((e) =>
-          e.location?.toLowerCase().includes(area.toLowerCase())
-        );
-      }
-      return events;
-    } catch (err) {
-      console.error("Eventbrite fetch failed, falling back:", err);
-      return this.readLocalEvents(area);
-    }
+/** GET /events/search – private token via query-param */
+async fetchBerlinEvents(area?: string, page = 1, pageSize = 50) {
+  if (!this.token) {
+    console.warn("Eventbrite token missing – using local fallback");
+    return this.readLocalEvents(area);
   }
+
+  const qs = new URLSearchParams({
+    "location.address": "Berlin",
+    expand:             "venue",
+    page:               String(page),
+    page_size:          String(pageSize),
+    token:              this.token,      // ←  pass here, **not** in header
+  });
+
+  try {
+    const res  = await fetch(`${this.baseUrl}/events/search/?${qs}`);
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error(`HTTP ${res.status} ${body}`);
+    }
+
+    const json = (await res.json()) as EventbriteSearchResponse;
+    let events = this.standardizeEventbriteEvents(json.events);
+
+    if (area) {
+      const a = area.toLowerCase();
+      events  = events.filter(e => e.location?.toLowerCase().includes(a));
+    }
+    return events;
+  } catch (err) {
+    console.error("Eventbrite fetch failed, falling back:", err);
+    return this.readLocalEvents(area);
+  }
+}
 
   /* ---------------- Local JSON fallback --------------------------------- */
   private async readLocalEvents(area?: string): Promise<StandardizedEvent[]> {

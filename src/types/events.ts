@@ -2,13 +2,13 @@
 export interface StandardizedEvent {
   id: string;
   title: string;
-  description: string | null;
+  description: string;
   event_date: string;
   location: string | null;
   image_url: string | null;
   category: string | null;
   tags: string[];
-  source_url: string;
+  source_url: string | null;
   source: 'eventbrite' | 'database' | 'local';
 }
 
@@ -27,7 +27,7 @@ export interface EventbriteEvent {
   };
   description: {
     text: string;
-  } | null;
+  };
   start: {
     utc: string;
     local: string;
