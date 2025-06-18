@@ -1,32 +1,61 @@
 
 import { useState, useEffect } from "react";
+import { Calendar as CalendarIcon, MapPin } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EventsList } from "@/components/events/EventsList";
 import { UpcomingEvents } from "@/components/events/UpcomingEvents";
+import { EventFilters } from "@/components/events/EventFilters";
 import { useEvents } from "@/hooks/useEvents";
-import { StandardizedEvent } from '@/types/events';
-import { Calendar as CalendarIcon, MapPin } from "lucide-react";
+import { StandardizedEvent } from "@/types/events";
+import { BERLIN_AREAS } from "@/constants/berlin";
 
 export const EnhancedEventsCalendar = () => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const { events, loading, selectedEvent, setSelectedEvent, loadEvents } = useEvents();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [selectedArea, setSelectedArea] = useState("all_areas");
+
+  const {
+    events,
+    filteredEvents,
+    loading,
+    selectedEvent,
+    setSelectedEvent,
+    loadEvents,
+    filterEvents,
+  } = useEvents();
 
   useEffect(() => {
     const dateStr = selectedDate
       ? selectedDate.toISOString().split('T')[0]
       : undefined;
-    loadEvents(dateStr ? { date: dateStr } : undefined);
-  }, [selectedDate]);
+    loadEvents({
+      date: dateStr,
+      area: selectedArea !== 'all_areas' ? selectedArea : undefined,
+    });
+  }, [selectedDate, selectedArea]);
   
+  useEffect(() => {
+    filterEvents({ searchTerm, selectedTags });
+  }, [searchTerm, selectedTags, events]);
+
   // Get events for the selected date
   const getEventsForDate = (date: Date | undefined): StandardizedEvent[] => {
     if (!date) return [];
-    const dateStr = date.toISOString().split('T')[0];
-    return events.filter(event => {
+    const dateStr = date.toISOString().split("T")[0];
+    return filteredEvents.filter((event) => {
       if (!event.event_date) return false;
-      const eventDateStr = new Date(event.event_date).toISOString().split('T')[0];
+      const eventDateStr = new Date(event.event_date)
+        .toISOString()
+        .split("T")[0];
       return eventDateStr === dateStr;
     });
   };
@@ -127,9 +156,18 @@ export const EnhancedEventsCalendar = () => {
               {eventsForSelectedDate.length} event{eventsForSelectedDate.length !== 1 ? 's' : ''} found
             </CardDescription>
           </CardHeader>
-          <CardContent className="p-0 h-full overflow-y-auto">
+          <CardContent className="p-4 space-y-4 h-full overflow-y-auto">
+            <EventFilters
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              selectedTags={selectedTags}
+              setSelectedTags={setSelectedTags}
+              selectedArea={selectedArea}
+              setSelectedArea={setSelectedArea}
+              availableAreas={BERLIN_AREAS}
+            />
             {eventsForSelectedDate.length > 0 ? (
-              <div className="p-4 space-y-4">
+              <div className="space-y-4">
                 {eventsForSelectedDate.map((event) => (
                   <div
                     key={event.id}
@@ -226,7 +264,17 @@ export const EnhancedEventsCalendar = () => {
         </Card>
 
         {/* Events for Selected Date */}
-        <EventsList 
+        <EventFilters
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          selectedTags={selectedTags}
+          setSelectedTags={setSelectedTags}
+          selectedArea={selectedArea}
+          setSelectedArea={setSelectedArea}
+          availableAreas={BERLIN_AREAS}
+        />
+
+        <EventsList
           events={eventsForSelectedDate}
           selectedEvent={selectedEvent}
           onEventSelect={setSelectedEvent}
