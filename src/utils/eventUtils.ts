@@ -64,23 +64,3 @@ export function generateEventTags(ev: TaggableEvent): string[] {
   return Array.from(new Set(tags)); // de-duplicate
 }
 
-/* ------------------------------------------------------------------ */
-/*  4. Date label helper                                              */
-/* ------------------------------------------------------------------ */
-
-export function formatEventDate(dateStr: string): string {
-  const date = new Date(dateStr);
-  const today = new Date();
-
-  if (date.toDateString() === today.toDateString()) return "Today";
-
-  const tomorrow = new Date(today);
-  tomorrow.setDate(today.getDate() + 1);
-  if (date.toDateString() === tomorrow.toDateString()) return "Tomorrow";
-
-  return date.toLocaleDateString("de-DE", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-}
