@@ -11,6 +11,7 @@
     "preview": "vite preview",
     "prepare": "husky install",
     "scrape-events": "node ./scripts/scrapeBerlinEvents.js",
+    "server": "node server/index.js",
     "test": "vitest"
   },
   "dependencies": {
@@ -67,7 +68,9 @@
     "tailwindcss-animate": "^1.0.7",
     "uuid": "^9.0.1",
     "vaul": "^0.9.3",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "express": "^4.19.2",
+    "dotenv": "^16.3.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.28.0",
