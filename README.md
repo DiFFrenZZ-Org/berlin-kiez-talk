@@ -39,6 +39,11 @@ VITE_SUPABASE_URL=<YOUR_SUPABASE_URL>
 VITE_SUPABASE_ANON_KEY=<YOUR_SUPABASE_ANON_KEY>
 EOF
 
+# The Express server expects an OAuth token for Eventbrite API requests.
+cat <<EOF > server/.env
+EVENTBRITE_OAUTH_TOKEN=<YOUR_EVENTBRITE_TOKEN>
+EOF
+
 
 # Step 4: Install the necessary dependencies.
 npm i
