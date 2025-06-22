@@ -27,26 +27,22 @@ interface EventbriteSearchResponse {
 /* ------------------------------------------------------------------ */
 
 export class EventbriteService {
-private readonly baseUrl = "https://www.eventbriteapi.com/v3";
-private readonly token   = import.meta.env.VITE_EVENTBRITE_PRIVATE_TOKEN;
+  // All Eventbrite requests are proxied through the local server so the
+  // private OAuth token never reaches the browser.  The Vite dev server
+  // proxies "/events" to the Express server defined under ./server.
+  private readonly baseUrl = "/events";
 
-/** GET /events/search – private token via query-param */
+
 async fetchBerlinEvents(area?: string, page = 1, pageSize = 50) {
-  if (!this.token) {
-    console.warn("Eventbrite token missing – using local fallback");
-    return this.readLocalEvents(area);
-  }
-
   const qs = new URLSearchParams({
-    "location.address": "Berlin",
-    expand:             "venue",
-    page:               String(page),
-    page_size:          String(pageSize),
-    token:              this.token,      // ←  pass here, **not** in header
+    location:  "Berlin",
+    page:      String(page),
+    page_size: String(pageSize),
   });
 
   try {
-    const res  = await fetch(`${this.baseUrl}/events/search/?${qs}`);
+    // Requests go to our Express backend which attaches the OAuth token
+    const res = await fetch(`${this.baseUrl}/search?${qs}`);
     if (!res.ok) {
       const body = await res.text().catch(() => "");
       throw new Error(`HTTP ${res.status} ${body}`);

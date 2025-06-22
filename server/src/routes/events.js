@@ -5,7 +5,7 @@ const router = express.Router();
 
 /**
  * GET /events/search
- * Example: /events/search?q=music&location=Berlin&page=1
+ * Example: /events/search?q=music&location=Berlin&page=1&page_size=50
  *
  * Relays query to Eventbrite and returns the raw JSON.
  */
@@ -16,7 +16,8 @@ router.get('/search', async (req, res) => {
       q        = '',          // keyword search
       location = 'Berlin',
       category = '',
-      page     = '1'
+      page     = '1',
+      page_size = '50'
     } = req.query;
 
     // Build the Eventbrite URL
@@ -24,6 +25,7 @@ router.get('/search', async (req, res) => {
     url.searchParams.set('expand', 'venue');
     url.searchParams.set('location.address', location);
     url.searchParams.set('page', page);
+    url.searchParams.set('page_size', page_size);
     if (q)       url.searchParams.set('q', q);
     if (category) url.searchParams.set('categories', category);
 
