@@ -1,5 +1,14 @@
 import express from 'express';
 import fetch   from 'node-fetch';          // remove this line if on Node ≥18
+import { get as getToken } from '../lib/tokenStore.js';
+import { refreshAccessToken } from './eventbriteAuth.js';
+
+function ensureAuth(req, res, next) {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
+}
 
 const router = express.Router();
 
@@ -9,7 +18,7 @@ const router = express.Router();
  *
  * Relays query to Eventbrite and returns the raw JSON.
  */
-router.get('/search', async (req, res) => {
+router.get('/search', ensureAuth, async (req, res) => {
   try {
     // Pull user-supplied filters or fall back to safe defaults
     const {
@@ -29,15 +38,15 @@ router.get('/search', async (req, res) => {
     if (q)       url.searchParams.set('q', q);
     if (category) url.searchParams.set('categories', category);
 
-    // Grab the OAuth token from .env
-    const token = process.env.EVENTBRITE_OAUTH_TOKEN;
-    if (!token) {
-      return res.status(500).json({ error: 'Server mis-config: no Eventbrite token' });
+    let tokenObj = getToken(req.session.userId);
+    if (!tokenObj) {
+      return res.status(401).json({ error: 'No Eventbrite credentials' });
     }
+    tokenObj = await refreshAccessToken(req.session.userId, tokenObj);
 
     // Hit Eventbrite
     const ebRes = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${tokenObj.access_token}` }
     });
 
     if (!ebRes.ok) {

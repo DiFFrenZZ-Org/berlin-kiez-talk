@@ -37,18 +37,19 @@ cd <YOUR_PROJECT_NAME>
 cat <<EOF > .env
 VITE_SUPABASE_URL=<YOUR_SUPABASE_URL>
 VITE_SUPABASE_ANON_KEY=<YOUR_SUPABASE_ANON_KEY>
-EOF
-
-# The Express server expects an OAuth token for Eventbrite API requests.
-cat <<EOF > server/.env
-EVENTBRITE_OAUTH_TOKEN=<YOUR_EVENTBRITE_TOKEN>
+EVENTBRITE_CLIENT_ID=<YOUR_EVENTBRITE_CLIENT_ID>
+EVENTBRITE_CLIENT_SECRET=<YOUR_EVENTBRITE_CLIENT_SECRET>
+SESSION_SECRET=<ANY_RANDOM_STRING>
 EOF
 
 
 # Step 4: Install the necessary dependencies.
 npm i
 
-# Step 5: Start the development server with auto-reloading and an instant preview.
+# Step 5: Start the Express API server.
+npm run dev:server
+
+# Step 6: Start the Vite dev server with auto-reloading and an instant preview.
 npm run dev
 ```
 
