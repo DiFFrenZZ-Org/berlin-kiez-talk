@@ -1,5 +1,5 @@
-import { StandardizedEvent } from "@/types/events";
-import { inferCategory, generateEventTags } from "@/utils/eventUtils";
+import { StandardizedEvent } from '@/types/events';
+import { inferCategory, generateEventTags } from '@/utils/eventUtils';
 
 /* ------------------------------------------------------------------ */
 /*  Minimal typings for the bits of Eventbrite’s response we use      */
@@ -27,48 +27,41 @@ interface EventbriteSearchResponse {
 /* ------------------------------------------------------------------ */
 
 export class EventbriteService {
-private readonly baseUrl = "https://www.eventbriteapi.com/v3";
-private readonly token   = import.meta.env.VITE_EVENTBRITE_PRIVATE_TOKEN;
+  private readonly baseUrl = '/api/eventbrite';
 
-/** GET /events/search – private token via query-param */
-async fetchBerlinEvents(area?: string, page = 1, pageSize = 50) {
-  if (!this.token) {
-    console.warn("Eventbrite token missing – using local fallback");
-    return this.readLocalEvents(area);
-  }
+  /** GET /events/search – private token via query-param */
+  async fetchBerlinEvents(area?: string, page = 1, pageSize = 50) {
+    const qs = new URLSearchParams({
+      'location.address': 'Berlin',
+      expand: 'venue',
+      page: String(page),
+      page_size: String(pageSize),
+    });
 
-  const qs = new URLSearchParams({
-    "location.address": "Berlin",
-    expand:             "venue",
-    page:               String(page),
-    page_size:          String(pageSize),
-    token:              this.token,      // ←  pass here, **not** in header
-  });
+    try {
+      const res = await fetch(`${this.baseUrl}/events?${qs}`);
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        throw new Error(`HTTP ${res.status} ${body}`);
+      }
 
-  try {
-    const res  = await fetch(`${this.baseUrl}/events/search/?${qs}`);
-    if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      throw new Error(`HTTP ${res.status} ${body}`);
+      const json = (await res.json()) as EventbriteSearchResponse;
+      let events = this.standardizeEventbriteEvents(json.events);
+
+      if (area) {
+        const a = area.toLowerCase();
+        events = events.filter((e) => e.location?.toLowerCase().includes(a));
+      }
+      return events;
+    } catch (err) {
+      console.error('Eventbrite fetch failed, falling back:', err);
+      return this.readLocalEvents(area);
     }
-
-    const json = (await res.json()) as EventbriteSearchResponse;
-    let events = this.standardizeEventbriteEvents(json.events);
-
-    if (area) {
-      const a = area.toLowerCase();
-      events  = events.filter(e => e.location?.toLowerCase().includes(a));
-    }
-    return events;
-  } catch (err) {
-    console.error("Eventbrite fetch failed, falling back:", err);
-    return this.readLocalEvents(area);
   }
-}
 
   /* ---------------- Local JSON fallback --------------------------------- */
   private async readLocalEvents(area?: string): Promise<StandardizedEvent[]> {
-    const res = await fetch("/events.json");
+    const res = await fetch('/events.json');
     const raw: RawLocalEvent[] = await res.json();
     let events = this.standardizeLocalEvents(raw);
     if (area) {
@@ -85,18 +78,21 @@ async fetchBerlinEvents(area?: string, page = 1, pageSize = 50) {
   ): StandardizedEvent[] {
     return events.map((e) => {
       const location =
-        e.venue?.address?.localized_address_display ?? "Berlin, Germany";
+        e.venue?.address?.localized_address_display ?? 'Berlin, Germany';
       return {
         id: `eb-${e.id}`,
-        title: e.name.text ?? "Event",
+        title: e.name.text ?? 'Event',
         description: e.description.text ?? null,
         event_date: e.start.utc,
         location,
         image_url: e.logo?.url ?? null,
-        category: inferCategory(e.name.text ?? "", e.description.text ?? ""),
-        tags: generateEventTags({ title: e.name.text, description: e.description.text }),
+        category: inferCategory(e.name.text ?? '', e.description.text ?? ''),
+        tags: generateEventTags({
+          title: e.name.text,
+          description: e.description.text,
+        }),
         source_url: e.url,
-        source: "eventbrite" as const,
+        source: 'eventbrite' as const,
       };
     });
   }
@@ -113,7 +109,7 @@ async fetchBerlinEvents(area?: string, page = 1, pageSize = 50) {
       category: e.category ?? inferCategory(e.title, e.description),
       tags: generateEventTags(e),
       source_url: e.source_url ?? null,
-      source: "local" as const,
+      source: 'local' as const,
     }));
   }
 }
