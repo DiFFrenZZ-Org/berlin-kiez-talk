@@ -2,6 +2,7 @@
 /*  src/services/eventsServiceEnhanced.ts                             */
 /* ------------------------------------------------------------------ */
 import { EventbriteService } from "./eventbrite";
+import { SerpApiService } from "./serpapi";
 import { StandardizedEvent, EventFilters } from "@/types/events";
 import { removeDuplicateEvents } from "@/utils/eventUtils";
 import { supabase } from "@/integrations/supabase/client";
@@ -30,6 +31,7 @@ function isFulfilled<T>(
 
 export class EventsServiceEnhanced {
   private eventbriteService = new EventbriteService();
+  private serpApiService = new SerpApiService();
 
   /* ---------------- PUBLIC ----------------------------------------- */
   async fetchAllEvents(
@@ -38,12 +40,13 @@ export class EventsServiceEnhanced {
     const results = await Promise.allSettled([
       this.fetchFromSupabase(filters),
       this.fetchFromEventbrite(filters),
+      this.fetchFromSerpAPI(filters),
       this.fetchFromLocalJSON(filters),
     ]);
 
     /* Collect successes, log rejections ----------------------------- */
     const collected: StandardizedEvent[] = [];
-    ["Supabase", "Eventbrite", "LocalJSON"].forEach((src, i) => {
+    ["Supabase", "Eventbrite", "SerpAPI", "LocalJSON"].forEach((src, i) => {
       const r = results[i];
       if (isFulfilled(r)) collected.push(...r.value);
       else errorLogger.logAPIError(`fetch_${src.toLowerCase()}`, r.reason);
@@ -114,6 +117,24 @@ export class EventsServiceEnhanced {
       );
     } catch (err) {
       errorLogger.logAPIError("fetchFromEventbrite", err, {
+        area: filters?.area,
+      });
+      return [];
+    }
+  }
+
+  private async fetchFromSerpAPI(
+    filters?: EventFilters
+  ): Promise<StandardizedEvent[]> {
+    try {
+      const city = filters?.area ?? "Berlin";
+      const query = filters?.search
+        ? `${filters.search} in ${city}`
+        : `Events in ${city}`;
+      return await this.serpApiService.fetchEvents(query);
+    } catch (err) {
+      errorLogger.logAPIError("fetchFromSerpAPI", err, {
+        search: filters?.search,
         area: filters?.area,
       });
       return [];

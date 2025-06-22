@@ -9,7 +9,7 @@ export interface StandardizedEvent {
   category: string | null;
   tags: string[];
   source_url: string | null;
-  source: 'eventbrite' | 'database' | 'local';
+  source: 'eventbrite' | 'database' | 'local' | 'serpapi';
 }
 
 export interface EventFilters {
