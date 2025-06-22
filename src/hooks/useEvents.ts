@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { EventsService } from '@/services/eventsService';
 import { StandardizedEvent, EventFilters } from '@/types/events';
 
@@ -6,158 +6,137 @@ export const useEvents = () => {
   const [events, setEvents] = useState<StandardizedEvent[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<StandardizedEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedEvent, setSelectedEvent] = useState<StandardizedEvent | null>(
-    null
-  );
+  const [selectedEvent, setSelectedEvent] = useState<StandardizedEvent | null>(null);
 
-  const eventsService = new EventsService();
+  // Single EventsService instance
+  const eventsServiceRef = useRef(new EventsService());
+  // Simple in-memory cache
   const cacheRef = useRef<Record<string, StandardizedEvent[]>>({});
 
-  /** Prefetch events for the next three days and store them in cache */
-  const prefetchAdjacentDays = async (
-    date: string,
-    area?: string
-  ): Promise<void> => {
-    const base = new Date(date);
-    for (let i = 1; i <= 3; i++) {
-      const next = new Date(base);
-      next.setDate(base.getDate() + i);
-      const dateStr = next.toISOString().split('T')[0];
-      const key = `d:${dateStr}-a:${area ?? 'all'}`;
-      if (cacheRef.current[key]) continue;
+  /** Prefetch next 3 days into cache */
+  const prefetchAdjacentDays = useCallback(
+    async (date: string, area?: string) => {
+      const base = new Date(date);
+      for (let i = 1; i <= 3; i++) {
+        const next = new Date(base);
+        next.setDate(base.getDate() + i);
+        const dateStr = next.toISOString().split('T')[0];
+        const key = `d:${dateStr}-a:${area ?? 'all'}`;
+        if (cacheRef.current[key]) continue;
+        try {
+          const ev = await eventsServiceRef.current.fetchAllEvents({ date: dateStr, area });
+          cacheRef.current[key] = ev;
+        } catch {
+          console.error('Prefetch failed');
+        }
+      }
+    },
+    []
+  );
+
+  /** Load one date (with optional filters) */
+  const loadEvents = useCallback(
+    async (filters?: EventFilters) => {
+      const key = filters?.date
+        ? `d:${filters.date}-a:${filters.area ?? 'all'}`
+        : 'all';
+
+      if (cacheRef.current[key]) {
+        const cached = cacheRef.current[key]!;
+        setEvents(cached);
+        setFilteredEvents(cached);
+        if (!selectedEvent && cached.length) setSelectedEvent(cached[0]);
+        return;
+      }
+
+      setLoading(true);
       try {
-        const events = await eventsService.fetchAllEvents({
-          date: dateStr,
-          area,
-        });
-        cacheRef.current[key] = events;
-      } catch (err) {
-        console.error('Prefetch failed', err);
+        const allEvents = await eventsServiceRef.current.fetchAllEvents(filters);
+        cacheRef.current[key] = allEvents;
+        setEvents(allEvents);
+        setFilteredEvents(allEvents);
+        if (allEvents.length && !selectedEvent) setSelectedEvent(allEvents[0]);
+        if (filters?.date) prefetchAdjacentDays(filters.date, filters.area);
+      } catch {
+        console.error('Failed to load events');
+      } finally {
+        setLoading(false);
       }
-    }
-  };
+    },
+    [selectedEvent, prefetchAdjacentDays]
+  );
 
-  const loadEvents = async (filters?: EventFilters) => {
-    const key = filters?.date
-      ? `d:${filters.date}-a:${filters.area ?? 'all'}`
-      : 'all';
-
-    if (cacheRef.current[key]) {
-      setEvents(cacheRef.current[key]);
-      setFilteredEvents(cacheRef.current[key]);
-      if (!selectedEvent && cacheRef.current[key].length > 0) {
-        setSelectedEvent(cacheRef.current[key][0]);
-      }
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const allEvents = await eventsService.fetchAllEvents(filters);
-      cacheRef.current[key] = allEvents;
-      setEvents(allEvents);
-      setFilteredEvents(allEvents);
-
-      // Auto-select first event if none selected
-      if (allEvents.length > 0 && !selectedEvent) {
-        setSelectedEvent(allEvents[0]);
+  /** Load events over a date range */
+  const loadEventsByDateRange = useCallback(
+    async (opts: { start: string; end: string; area?: string }) => {
+      const key = `dr:${opts.start}-${opts.end}-a:${opts.area ?? 'all'}`;
+      if (cacheRef.current[key]) {
+        const cached = cacheRef.current[key]!;
+        setEvents(cached);
+        setFilteredEvents(cached);
+        if (!selectedEvent && cached.length) setSelectedEvent(cached[0]);
+        return;
       }
 
-      if (filters?.date) {
-        prefetchAdjacentDays(filters.date, filters.area);
+      setLoading(true);
+      try {
+        const rangeEvents = await eventsServiceRef.current.getEventsByDateRange(
+          opts.start, opts.end, opts.area
+        );
+        cacheRef.current[key] = rangeEvents;
+        setEvents(rangeEvents);
+        setFilteredEvents(rangeEvents);
+        if (rangeEvents.length && !selectedEvent) setSelectedEvent(rangeEvents[0]);
+      } catch {
+        console.error('Failed to load events in range');
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error('Failed to load events', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [selectedEvent]
+  );
 
-  /** Load events within a specific date range */
-  const loadEventsByDateRange = async (opts: {
-    start: string;
-    end: string;
-    area?: string;
-  }) => {
-    const key = `dr:${opts.start}-${opts.end}-a:${opts.area ?? 'all'}`;
-    if (cacheRef.current[key]) {
-      setEvents(cacheRef.current[key]);
-      setFilteredEvents(cacheRef.current[key]);
-      if (!selectedEvent && cacheRef.current[key].length > 0) {
-        setSelectedEvent(cacheRef.current[key][0]);
+  /** Client-side filtering */
+  const filterEvents = useCallback(
+    (filters: { searchTerm?: string; selectedTags?: string[] }) => {
+      let results = events;
+
+      if (filters.searchTerm) {
+        const term = filters.searchTerm.toLowerCase();
+        results = results.filter(e =>
+          e.title.toLowerCase().includes(term) ||
+          e.description?.toLowerCase().includes(term) ||
+          e.location?.toLowerCase().includes(term)
+        );
       }
-      return;
-    }
 
-    setLoading(true);
-    try {
-      const rangeEvents = await eventsService.getEventsByDateRange(
-        opts.start,
-        opts.end,
-        opts.area,
-      );
-      cacheRef.current[key] = rangeEvents;
-      setEvents(rangeEvents);
-      setFilteredEvents(rangeEvents);
-
-      if (rangeEvents.length > 0 && !selectedEvent) {
-        setSelectedEvent(rangeEvents[0]);
+      if (filters.selectedTags?.length) {
+        results = results.filter(e =>
+          filters.selectedTags!.some(tag =>
+            e.tags?.includes(tag) ||
+            e.title.toLowerCase().includes(tag) ||
+            e.description?.toLowerCase().includes(tag) ||
+            e.category?.toLowerCase().includes(tag)
+          )
+        );
       }
-    } catch (err) {
-      console.error('Failed to load events in range', err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const filterEvents = (filters: {
-    searchTerm?: string;
-    selectedTags?: string[];
-  }) => {
-    let filtered = events;
+      setFilteredEvents(results);
+      if (results.length && (!selectedEvent || !results.some(e => e.id === selectedEvent.id))) {
+        setSelectedEvent(results[0]);
+      }
+    },
+    [events, selectedEvent]
+  );
 
-    if (filters.searchTerm) {
-      filtered = filtered.filter(
-        (event) =>
-          event.title
-            .toLowerCase()
-            .includes(filters.searchTerm!.toLowerCase()) ||
-          event.description
-            ?.toLowerCase()
-            .includes(filters.searchTerm!.toLowerCase()) ||
-          event.location
-            ?.toLowerCase()
-            .includes(filters.searchTerm!.toLowerCase())
-      );
-    }
-
-    if (filters.selectedTags && filters.selectedTags.length > 0) {
-      filtered = filtered.filter((event) =>
-        filters.selectedTags!.some(
-          (tag) =>
-            event.tags?.includes(tag) ||
-            event.title.toLowerCase().includes(tag.toLowerCase()) ||
-            event.description?.toLowerCase().includes(tag.toLowerCase()) ||
-            event.category?.toLowerCase().includes(tag.toLowerCase())
-        )
-      );
-    }
-
-    setFilteredEvents(filtered);
-
-    // Auto-select first event if current selection is not in filtered results
-    if (
-      filtered.length > 0 &&
-      (!selectedEvent || !filtered.find((e) => e.id === selectedEvent.id))
-    ) {
-      setSelectedEvent(filtered[0]);
-    }
-  };
-
-  const getEventCountForDate = (date: Date) => {
-    const dateStr = date.toISOString().split('T')[0];
-    return events.filter((event) => event.event_date === dateStr).length;
-  };
+  /** Count events on a date for calendar highlights */
+  const getEventCountForDate = useCallback(
+    (date: Date) => {
+      const ds = date.toISOString().split('T')[0];
+      return events.filter(e => e.event_date === ds).length;
+    },
+    [events]
+  );
 
   return {
     events,

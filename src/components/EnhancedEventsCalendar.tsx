@@ -29,7 +29,6 @@ export const EnhancedEventsCalendar = () => {
     loading,
     selectedEvent,
     setSelectedEvent,
-    loadEvents,
     loadEventsByDateRange,
     filterEvents,
   } = useEvents();
@@ -45,11 +44,11 @@ export const EnhancedEventsCalendar = () => {
       end,
       area: selectedArea !== 'all_areas' ? selectedArea : undefined,
     });
-  }, [selectedDate, selectedArea]);
+  }, [selectedDate, selectedArea, loadEventsByDateRange]);
 
   useEffect(() => {
     filterEvents({ searchTerm, selectedTags });
-  }, [searchTerm, selectedTags, events]);
+  }, [searchTerm, selectedTags, events, filterEvents]);
 
   // Get events for the selected date
   const getEventsForDate = (date: Date | undefined): StandardizedEvent[] => {
