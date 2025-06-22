@@ -1,0 +1,8 @@
+{
+  "network": {
+    "allow": [
+      "registry.npmjs.org",
+      "*.npmjs.org"
+    ]
+  }
+}
