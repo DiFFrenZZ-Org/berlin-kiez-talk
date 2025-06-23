@@ -51,6 +51,33 @@ export type Database = {
         }
         Relationships: []
       }
+      berlin_news: {
+        Row: {
+          id: string
+          title: string
+          content: string
+          created_at: string | null
+          borough: string | null
+          category: string | null
+        }
+        Insert: {
+          id?: string
+          title: string
+          content: string
+          created_at?: string | null
+          borough?: string | null
+          category?: string | null
+        }
+        Update: {
+          id?: string
+          title?: string
+          content?: string
+          created_at?: string | null
+          borough?: string | null
+          category?: string | null
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           anonymous_name: string | null
