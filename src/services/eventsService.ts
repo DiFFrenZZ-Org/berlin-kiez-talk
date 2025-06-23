@@ -84,7 +84,8 @@ export class EventsService {
     filters?: EventFilters,
   ): Promise<StandardizedEvent[]> {
     try {
-      const res = await fetch("/events.json");
+      const res = await fetch("/data/events.json");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const raw: LocalJsonEvent[] = await res.json();
 
       let events: StandardizedEvent[] = raw.map((e) => ({
