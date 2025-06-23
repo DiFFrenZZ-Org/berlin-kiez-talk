@@ -12,18 +12,16 @@ export default defineConfig(({ mode }) => {
       host: '::',
       port: 8080,
       proxy: {
-      '/events': 'http://localhost:3000'
+        '/events/': 'http://localhost:3000',
+      },
     },
-    },
-    plugins: [
-      react(),
-    ],
+    plugins: [react()],
     css: {
       postcss: {
         plugins: [
-          tailwindcss()  // Proper Tailwind integration via PostCSS
-        ]
-      }
+          tailwindcss(), // Proper Tailwind integration via PostCSS
+        ],
+      },
     },
     resolve: {
       alias: {
