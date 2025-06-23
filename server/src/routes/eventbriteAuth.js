@@ -1,98 +1,132 @@
+/* --------------------------------------------------------- *
+ *  Eventbrite OAuth router                                  *
+ *  Final URLs when mounted at /auth/eventbrite :            *
+ *    GET /auth/eventbrite/login                             *
+ *    GET /auth/eventbrite/callback                          *
+ * --------------------------------------------------------- */
 import 'dotenv/config';
-
 import express from 'express';
-import fetch from 'node-fetch';
+import fetch   from 'node-fetch';
 import { v4 as uuidv4 } from 'uuid';
-import { save } from '../lib/tokenStore.js';
+import { save, get } from '../lib/tokenStore.js';   // get() is handy later
 
 const router = express.Router();
 
+/* --------------------------------------------------------- *
+ *  Refresh helper (exported for /events route)              *
+ * --------------------------------------------------------- */
 export async function refreshAccessToken(userId, token) {
   if (!token) return null;
-  const now = Date.now();
-  if (token.expires_at && token.expires_at - 60000 > now) {
+
+  if (!token.refresh_token) {
     return token;
   }
 
-  const params = new URLSearchParams({
-    grant_type: 'refresh_token',
+  /* still valid for >60 s ? */
+  if (token.expires_at && token.expires_at - 60_000 > Date.now()) {
+    return token;
+  }
+
+  const body = new URLSearchParams({
+    grant_type:    'refresh_token',
     refresh_token: token.refresh_token,
-    client_id: process.env.EB_CLIENT_ID,
+    client_id:     process.env.EB_CLIENT_ID,
     client_secret: process.env.EB_CLIENT_SECRET,
   });
 
-  const res = await fetch('https://www.eventbrite.com/oauth/token', {
+  const resp = await fetch('https://www.eventbrite.com/oauth/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: params.toString(),
+    body: body.toString(),
   });
 
-  if (!res.ok) {
-    console.error('Failed to refresh token:', await res.text());
-    return token;
+  if (!resp.ok) {
+    console.error('[REFRESH] failed:', await resp.text());
+    return token;                                // fall back to old token
   }
 
-  const json = await res.json();
-  const newToken = {
-    access_token: json.access_token,
+  const json = await resp.json();
+  const fresh = {
+    access_token:  json.access_token,
     refresh_token: json.refresh_token || token.refresh_token,
-    expires_at: Date.now() + json.expires_in * 1000,
+    expires_at:    Date.now() + json.expires_in * 1000,
   };
-  save(userId, newToken);
-  return newToken;
+  save(userId, fresh);
+  return fresh;
 }
 
-router.get('/auth/eventbrite/login', (req, res) => {
+/* --------------------------------------------------------- *
+ *  1.  /login  → 302 to Eventbrite                          *
+ * --------------------------------------------------------- */
+router.get('/login', (req, res) => {
   const state = uuidv4();
-  req.session.oauthState = state;
+  req.session.oauthState = state;                       // save in session
+  console.log('[LOGIN]  session', req.session.id, 'state', state);
+
   const url = new URL('https://www.eventbrite.com/oauth/authorize');
   url.searchParams.set('response_type', 'code');
   url.searchParams.set('client_id', process.env.EB_CLIENT_ID);
-  url.searchParams.set('redirect_uri', process.env.EB_REDIRECT_URI || 'http://localhost:3000/auth/eventbrite/callback');
-  url.searchParams.set('scope', 'events:read');
+  url.searchParams.set(
+    'redirect_uri',
+    process.env.EB_REDIRECT_URI ||
+      'http://localhost:3000/auth/eventbrite/callback'
+  );
+  url.searchParams.set('scope', 'events:read offline_access'); // offline access for refresh token
   url.searchParams.set('state', state);
+
   res.redirect(url.toString());
 });
 
-router.get('/auth/eventbrite/callback', async (req, res) => {
+/* --------------------------------------------------------- *
+ *  2.  /callback  ← Eventbrite redirects here               *
+ * --------------------------------------------------------- */
+router.get('/callback', async (req, res) => {
   const { code, state } = req.query;
+  console.log('[CALLBACK] session', req.session.id,
+              'incoming', state,
+              'stored', req.session.oauthState);
+
+  /* ---- CSRF / replay guard -------------------------------- */
   if (!code || !state || state !== req.session.oauthState) {
     return res.status(400).send('Invalid OAuth state');
   }
-  delete req.session.oauthState;
+  delete req.session.oauthState;                         // one-time use
 
-  const params = new URLSearchParams({
-    grant_type: 'authorization_code',
+  /* ---- Exchange code ⟶ access/refresh tokens -------------- */
+  const body = new URLSearchParams({
+    grant_type:    'authorization_code',
     code,
-    client_id: process.env.EB_CLIENT_ID,
+    client_id:     process.env.EB_CLIENT_ID,
     client_secret: process.env.EB_CLIENT_SECRET,
-    redirect_uri: process.env.EB_REDIRECT_URI || 'http://localhost:3000/auth/eventbrite/callback',
+    redirect_uri:  process.env.EB_REDIRECT_URI ||
+                   'http://localhost:3000/auth/eventbrite/callback',
   });
 
-  const tokenRes = await fetch('https://www.eventbrite.com/oauth/token', {
+  const resp = await fetch('https://www.eventbrite.com/oauth/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: params.toString(),
+    body: body.toString(),
   });
 
-  if (!tokenRes.ok) {
-    const text = await tokenRes.text();
-    console.error('Token exchange failed:', text);
-    return res.status(500).send('OAuth failed');
+  if (!resp.ok) {
+    console.error('[CALLBACK] token exchange failed:', await resp.text());
+    return res.status(502).send('OAuth token exchange failed');
   }
 
-  const json = await tokenRes.json();
+  const json = await resp.json();
   const token = {
-    access_token: json.access_token,
+    access_token:  json.access_token,
     refresh_token: json.refresh_token,
-    expires_at: Date.now() + json.expires_in * 1000,
+    expires_at:    Date.now() + json.expires_in * 1000,
   };
 
-  if (!req.session.userId) {
-    req.session.userId = uuidv4();
-  }
+  /* ---- link tokens to the session’s user ------------------ */
+  if (!req.session.userId) req.session.userId = uuidv4();
   save(req.session.userId, token);
-  res.redirect('/');
+  console.log('[CALLBACK] stored token for', req.session.userId);
+
+  /* ---- back to the front-end ------------------------------ */
+  res.redirect(process.env.FRONTEND_URL || 'http://localhost:5173');
 });
 
 export default router;

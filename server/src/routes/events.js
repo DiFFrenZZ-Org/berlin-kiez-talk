@@ -30,7 +30,7 @@ router.get('/search', ensureAuth, async (req, res) => {
     } = req.query;
 
     // Build the Eventbrite URL
-    const url = new URL('https://www.eventbriteapi.com/v3/events/search/');
+    const url = new URL('https://www.eventbriteapi.com/v3/organizations/${orgId}/events');
     url.searchParams.set('expand', 'venue');
     url.searchParams.set('location.address', location);
     url.searchParams.set('page', page);
@@ -44,11 +44,14 @@ router.get('/search', ensureAuth, async (req, res) => {
     }
     tokenObj = await refreshAccessToken(req.session.userId, tokenObj);
 
+    console.log('[EB-proxy] →', url.toString());
+    console.log('[EB-proxy] Bearer', tokenObj.access_token.slice(0,16)+'…');
+
     // Hit Eventbrite
     const ebRes = await fetch(url, {
       headers: { Authorization: `Bearer ${tokenObj.access_token}` }
     });
-
+    
     if (!ebRes.ok) {
       const errText = await ebRes.text();
       return res.status(ebRes.status).json({ error: errText });
