@@ -1,8 +1,13 @@
-
-import { useState, useEffect } from "react";
-import { Calendar as CalendarIcon, MapPin } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar } from "@/components/ui/calendar";
+import { useState, useEffect } from 'react';
+import { Calendar as CalendarIcon, MapPin } from 'lucide-react';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Calendar } from '@/components/ui/calendar';
 
 interface EventItem {
   id: string;
@@ -20,7 +25,8 @@ export const EventsCalendar = () => {
   useEffect(() => {
     const loadEvents = async () => {
       try {
-        const res = await fetch('/events.json');
+        const res = await fetch('/data/events.json');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         setEvents(data);
       } catch (err) {
@@ -33,9 +39,13 @@ export const EventsCalendar = () => {
   }, [selectedDate]);
 
   const formatDate = (dateString: string | null) => {
-    if (!dateString) return "";
+    if (!dateString) return '';
     const date = new Date(dateString);
-    return date.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+    return date.toLocaleDateString('de-DE', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
   };
 
   return (
@@ -45,7 +55,9 @@ export const EventsCalendar = () => {
           <CardTitle className="text-xl flex items-center">
             <CalendarIcon className="h-5 w-5 mr-2" /> Veranstaltungen
           </CardTitle>
-          <CardDescription className="text-blue-200">Kommende Termine in deinem Kiez</CardDescription>
+          <CardDescription className="text-blue-200">
+            Kommende Termine in deinem Kiez
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Calendar selected={selectedDate} onSelect={setSelectedDate} />
@@ -54,14 +66,18 @@ export const EventsCalendar = () => {
           ) : events.length === 0 ? (
             <div className="text-center text-blue-300 py-8">
               <p>Keine Events verfügbar</p>
-              <p className="text-sm mt-2 opacity-70">Diese Funktion wird bald verfügbar sein</p>
+              <p className="text-sm mt-2 opacity-70">
+                Diese Funktion wird bald verfügbar sein
+              </p>
             </div>
           ) : (
             events.map((ev) => (
               <Card key={ev.id} className="bg-white/5 text-white">
                 <CardContent className="p-4 space-y-2">
                   <h3 className="font-semibold text-lg">{ev.title}</h3>
-                  <p className="text-sm text-blue-200 whitespace-pre-wrap">{ev.description}</p>
+                  <p className="text-sm text-blue-200 whitespace-pre-wrap">
+                    {ev.description}
+                  </p>
                   <div className="flex items-center justify-between text-xs text-blue-300">
                     <span>{formatDate(ev.event_date)}</span>
                     {ev.location && (
