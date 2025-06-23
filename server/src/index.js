@@ -9,7 +9,7 @@ dotenv.config();                    // loads .env in /server
 const app = express();
 app.use(express.json());
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'change-me',
+  secret: process.env.SESSION_SECRET || 'changeme',
   resave: false,
   saveUninitialized: true,
 }));

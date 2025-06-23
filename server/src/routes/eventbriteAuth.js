@@ -1,3 +1,5 @@
+import 'dotenv/config';
+
 import express from 'express';
 import fetch from 'node-fetch';
 import { v4 as uuidv4 } from 'uuid';
@@ -15,8 +17,8 @@ export async function refreshAccessToken(userId, token) {
   const params = new URLSearchParams({
     grant_type: 'refresh_token',
     refresh_token: token.refresh_token,
-    client_id: process.env.EVENTBRITE_CLIENT_ID,
-    client_secret: process.env.EVENTBRITE_CLIENT_SECRET,
+    client_id: process.env.EB_CLIENT_ID,
+    client_secret: process.env.EB_CLIENT_SECRET,
   });
 
   const res = await fetch('https://www.eventbrite.com/oauth/token', {
@@ -45,8 +47,8 @@ router.get('/auth/eventbrite/login', (req, res) => {
   req.session.oauthState = state;
   const url = new URL('https://www.eventbrite.com/oauth/authorize');
   url.searchParams.set('response_type', 'code');
-  url.searchParams.set('client_id', process.env.EVENTBRITE_CLIENT_ID);
-  url.searchParams.set('redirect_uri', process.env.EVENTBRITE_REDIRECT_URI || 'http://localhost:3000/auth/eventbrite/callback');
+  url.searchParams.set('client_id', process.env.EB_CLIENT_ID);
+  url.searchParams.set('redirect_uri', process.env.EB_REDIRECT_URI || 'http://localhost:3000/auth/eventbrite/callback');
   url.searchParams.set('scope', 'events:read');
   url.searchParams.set('state', state);
   res.redirect(url.toString());
@@ -62,9 +64,9 @@ router.get('/auth/eventbrite/callback', async (req, res) => {
   const params = new URLSearchParams({
     grant_type: 'authorization_code',
     code,
-    client_id: process.env.EVENTBRITE_CLIENT_ID,
-    client_secret: process.env.EVENTBRITE_CLIENT_SECRET,
-    redirect_uri: process.env.EVENTBRITE_REDIRECT_URI || 'http://localhost:3000/auth/eventbrite/callback',
+    client_id: process.env.EB_CLIENT_ID,
+    client_secret: process.env.EB_CLIENT_SECRET,
+    redirect_uri: process.env.EB_REDIRECT_URI || 'http://localhost:3000/auth/eventbrite/callback',
   });
 
   const tokenRes = await fetch('https://www.eventbrite.com/oauth/token', {
