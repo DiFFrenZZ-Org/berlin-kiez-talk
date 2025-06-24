@@ -7,52 +7,39 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { supabase } from "@/lib/supabaseClient";
 
-interface Announcement {
+interface NewsItem {
   id: string;
   title: string;
   content: string;
   created_at: string | null;
-  profile?: { nickname: string | null } | null;
+  borough: string | null;
+  category: string | null;
 }
 
 export const AnnouncementsFeed = () => {
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [news, setNews] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  /* ------------------------------------------------------------------ */
-  /*  Placeholder data  Supabase table                     */
-  /* ------------------------------------------------------------------ */
- useEffect(() => {
-  const fetchAnnouncements = async () => {
-    const { data, error } = await supabase
-      .from("announcements")
-      .select("id, title, content, created_at, profiles(nickname)")
-      .order("created_at", { ascending: false });
+  useEffect(() => {
+    const fetchNews = async () => {
+      const { data, error } = await supabase
+        .from("berlin_news")
+        .select("id, title, content, created_at, borough, category")
+        .order("created_at", { ascending: false });
 
-    if (error) {
-      console.error("Could not load announcements:", error);
-    } else {
-      setAnnouncements(
-        data.map((row) => ({
-          id: row.id,
-          title: row.title,
-          content: row.content,
-          created_at: row.created_at,
-          profile: { nickname: row.profiles?.nickname ?? "System" },
-        }))
-      );
-    }
-    setLoading(false);
-  };
+      if (error) {
+        console.error("Could not load news:", error);
+      } else {
+        setNews(data);
+      }
+      setLoading(false);
+    };
 
-  fetchAnnouncements();
-}, []);
+    fetchNews();
+  }, []);
 
-
-  /* ------------------------------------------------------------------ */
-  /*  Helpers                                                           */
-  /* ------------------------------------------------------------------ */
   const formatTimeAgo = (iso: string | null) => {
     if (!iso) return "";
     const diffH = Math.floor((Date.now() - +new Date(iso)) / 36e5);
@@ -61,9 +48,6 @@ export const AnnouncementsFeed = () => {
     return `vor ${Math.floor(diffH / 24)}d`;
   };
 
-  /* ------------------------------------------------------------------ */
-  /*  JSX                                                               */
-  /* ------------------------------------------------------------------ */
   return (
     <div className="space-y-6">
       <Card className="bg-white/10 backdrop-blur-md border-white/20 text-white">
@@ -82,7 +66,7 @@ export const AnnouncementsFeed = () => {
         <CardContent className="space-y-4">
           {loading ? (
             <div className="text-center text-contrast-low py-8">Lädt …</div>
-          ) : announcements.length === 0 ? (
+          ) : news.length === 0 ? (
             <div className="text-center text-contrast-low py-8">
               <p>Keine Ankündigungen verfügbar</p>
               <p className="text-sm mt-2 opacity-70">
@@ -90,16 +74,16 @@ export const AnnouncementsFeed = () => {
               </p>
             </div>
           ) : (
-            announcements.map((ann) => (
-              <Card key={ann.id} className="bg-white/5 text-white">
+            news.map((item) => (
+              <Card key={item.id} className="bg-white/5 text-white">
                 <CardContent className="p-4 space-y-2">
                   <div className="flex items-center justify-between text-xs text-contrast-low">
-                    <span>{ann.profile?.nickname ?? "System"}</span>
-                    <span>{formatTimeAgo(ann.created_at)}</span>
+                    <span>System</span>
+                    <span>{formatTimeAgo(item.created_at)}</span>
                   </div>
-                  <h3 className="font-semibold text-lg">{ann.title}</h3>
+                  <h3 className="font-semibold text-lg">{item.title}</h3>
                   <p className="text-sm text-contrast-low whitespace-pre-wrap">
-                    {ann.content}
+                    {item.content}
                   </p>
                 </CardContent>
               </Card>
