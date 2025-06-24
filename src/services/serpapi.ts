@@ -2,7 +2,9 @@ import { StandardizedEvent } from "@/types/events";
 import { inferCategory, generateEventTags } from "@/utils/eventUtils";
 import { errorLogger } from "@/utils/errorLogger";
 
-/* Minimal type for Google Events API response */
+/* ------------------------------------------------------------------ */
+/*  Google-events JSON fragment returned by the proxy                 */
+/* ------------------------------------------------------------------ */
 interface SerpApiEvent {
   title: string;
   date?: { start_date?: string; when?: string };
@@ -14,45 +16,47 @@ interface SerpApiEvent {
 }
 
 export class SerpApiService {
-  private readonly apiKey = import.meta.env.VITE_SERPAPI_KEY;
-  private readonly baseUrl = "https://serpapi.com/search.json";
+  /** Backend proxy endpoint – no API key on the client anymore */
+  private readonly baseUrl = "/api/serp/events";
 
-  async fetchEvents(query = "Events in Berlin"): Promise<StandardizedEvent[]> {
-    if (!this.apiKey) {
-      console.warn("SerpAPI key missing – skipping fetch");
-      return [];
-    }
-
-    const params = new URLSearchParams({
-      engine: "google_events",
-      q: query,
-      hl: "en",
-      api_key: this.apiKey,
-    });
+  /**
+   * Fetch events for a city (default “Berlin”).
+   * The server converts `city`→`q=Events in <city>` and adds the real SerpAPI key.
+   */
+  async fetchEvents(city = "Berlin"): Promise<StandardizedEvent[]> {
+    const params = new URLSearchParams({ city });
 
     try {
       const res = await fetch(`${this.baseUrl}?${params}`);
       if (!res.ok) {
         const body = await res.text().catch(() => "");
-        throw new Error(`HTTP ${res.status} ${body}`);
+        throw new Error(`Proxy HTTP ${res.status} ${body}`);
       }
 
       const json = await res.json();
       const events = (json.events_results ?? []) as SerpApiEvent[];
       return events.map((e) => this.standardize(e));
     } catch (err) {
-      errorLogger.logAPIError("fetchFromSerpAPI", err, { query });
+      errorLogger.logAPIError("fetchFromSerpAPI", err, { city });
       return [];
     }
   }
 
+  /* ------------------------------------------------------------------ */
+  /*  Normaliser → StandardizedEvent                                    */
+  /* ------------------------------------------------------------------ */
   private standardize(e: SerpApiEvent): StandardizedEvent {
     const start = e.date?.start_date?.split("–")[0]?.trim();
     const yearMatch = e.description?.match(/(20\d{2})/);
     const year = yearMatch ? yearMatch[1] : String(new Date().getFullYear());
-    const iso = start ? new Date(`${start} ${year}`).toISOString() : new Date().toISOString();
+    const iso = start
+      ? new Date(`${start} ${year}`).toISOString()
+      : new Date().toISOString();
 
-    const location = Array.isArray(e.address) ? e.address.join(", ") : e.address ?? "";
+    const location = Array.isArray(e.address)
+      ? e.address.join(", ")
+      : e.address ?? "";
+
     const category = inferCategory(e.title, e.description);
 
     return {
@@ -63,9 +67,14 @@ export class SerpApiService {
       location: location || null,
       image_url: e.image ?? e.thumbnail ?? null,
       category,
-      tags: generateEventTags({ title: e.title, description: e.description ?? "", tags: [], category }),
+      tags: generateEventTags({
+        title: e.title,
+        description: e.description ?? "",
+        tags: [],
+        category,
+      }),
       source_url: e.link ?? null,
-      source: "serpapi" as const,
+      source: "serpapi",
     };
   }
 }

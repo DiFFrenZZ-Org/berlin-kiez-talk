@@ -14,7 +14,6 @@
     "prepare": "husky install",
     "scrape-events": "node ./scripts/scrapeBerlinEvents.js",
     "test": "vitest"
-    
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

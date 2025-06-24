@@ -8,7 +8,7 @@ import 'dotenv/config';
 import express from 'express';
 import fetch   from 'node-fetch';
 import { v4 as uuidv4 } from 'uuid';
-import { save, get } from '../lib/tokenStore.js';   // get() is handy later
+import { save } from '../lib/tokenStore.js';   // get() is handy later
 
 const router = express.Router();
 
