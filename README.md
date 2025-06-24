@@ -32,11 +32,12 @@ git clone <YOUR_GIT_URL>
 cd <YOUR_PROJECT_NAME>
 
 
-# Step 3: Create a `.env` file with your Supabase credentials.
+# Step 3: Create a `.env` file with your Supabase credentials and API keys.
 # You can use the provided `.env.example` as a template.
 cat <<EOF > .env
 VITE_SUPABASE_URL=<YOUR_SUPABASE_URL>
 VITE_SUPABASE_ANON_KEY=<YOUR_SUPABASE_ANON_KEY>
+VITE_SERPAPI_KEY=<YOUR_SERPAPI_KEY>
 EVENTBRITE_CLIENT_ID=<YOUR_EVENTBRITE_CLIENT_ID>
 EVENTBRITE_CLIENT_SECRET=<YOUR_EVENTBRITE_CLIENT_SECRET>
 SESSION_SECRET=<ANY_RANDOM_STRING>
@@ -76,6 +77,13 @@ This project is built with:
 - React
 - shadcn-ui
 - Tailwind CSS
+
+## Using SerpAPI
+
+Set up a [SerpAPI](https://serpapi.com/google-events-api) key and add it to your
+`.env` file as `VITE_SERPAPI_KEY`. This key enables fetching event information
+from Google Events. The application reads this value at build time via Vite's
+environment variables.
 
 ## How can I deploy this project?
 
