@@ -9,10 +9,10 @@ import { TestDataProvider } from "@/components/TestDataProvider";
 import { Suspense, lazy } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const Index = lazy(() => import("./pages/Index"));
-const ProfilePage = lazy(() => import("./pages/Profile"));
+const Index = lazy(() => import("./routes/index"));
+const ProfilePage = lazy(() => import("./routes/profile"));
 const NotFound = lazy(() => import("./pages/NotFound"));
-const ChatTest = lazy(() => import("./pages/ChatTest"));
+const ChatTest = lazy(() => import("./routes/chat-test"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
