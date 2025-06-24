@@ -7,40 +7,29 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { supabase } from "@/lib/supabaseClient";
+import { NewsApiService } from "@/services/newsApi";
+import type { NewsArticle } from "@/types/news";
 
-interface NewsItem {
-  id: string;
-  title: string;
-  content: string;
-  created_at: string | null;
-  borough: string | null;
-  category: string | null;
-}
+type NewsItem = NewsArticle;
 
 export const AnnouncementsFeed = () => {
   const [news, setNews] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const service = new NewsApiService();
+    const now = new Date();
+    const to = new Date(now.getTime() + 48 * 60 * 60 * 1000);
     const fetchNews = async () => {
-      const { data, error } = await supabase
-        .from("berlin_news")
-        .select("id, title, content, created_at, borough, category")
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        console.error("Could not load news:", error);
-      } else {
-        setNews(data);
-      }
+      const articles = await service.fetchBerlinNews(now.toISOString(), to.toISOString());
+      setNews(articles);
       setLoading(false);
     };
 
     fetchNews();
   }, []);
 
-  const formatTimeAgo = (iso: string | null) => {
+  const formatTimeAgo = (iso: string) => {
     if (!iso) return "";
     const diffH = Math.floor((Date.now() - +new Date(iso)) / 36e5);
     if (diffH < 1) return "vor wenigen Minuten";
@@ -77,14 +66,23 @@ export const AnnouncementsFeed = () => {
             news.map((item) => (
               <Card key={item.id} className="bg-white/5 text-white">
                 <CardContent className="p-4 space-y-2">
+                  {item.image_url && (
+                    <img
+                      src={item.image_url}
+                      alt=""
+                      className="rounded-md w-full h-40 object-cover"
+                    />
+                  )}
                   <div className="flex items-center justify-between text-xs text-contrast-low">
-                    <span>System</span>
-                    <span>{formatTimeAgo(item.created_at)}</span>
+                    <span>{item.source}</span>
+                    <span>{formatTimeAgo(item.published_at)}</span>
                   </div>
                   <h3 className="font-semibold text-lg">{item.title}</h3>
-                  <p className="text-sm text-contrast-low whitespace-pre-wrap">
-                    {item.content}
-                  </p>
+                  {item.description && (
+                    <p className="text-sm text-contrast-low whitespace-pre-wrap">
+                      {item.description}
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             ))
