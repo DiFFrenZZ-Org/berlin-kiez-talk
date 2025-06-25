@@ -5,14 +5,14 @@
   "type": "module",
   "scripts": {
     "dev:client": "vite",
-    "dev:server": "npm --prefix server run dev",
-    "dev": "concurrently -k -n server,client -c blue,green \"yarn dev:server\" \"yarn dev:client\"",
+    "dev:server": "npm --prefix backend run dev",
+    "dev": "concurrently -k -n backend,client -c blue,green \"yarn dev:server\" \"yarn dev:client\"",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
     "prepare": "husky install",
-    "scrape-events": "node ./scripts/scrapeBerlinEvents.js",
+    "scrape-events": "node ./backend/scripts/scrapeBerlinEvents.js",
     "test": "vitest"
   },
   "dependencies": {

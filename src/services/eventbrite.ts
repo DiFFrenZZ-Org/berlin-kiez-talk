@@ -29,7 +29,7 @@ interface EventbriteSearchResponse {
 export class EventbriteService {
   // All Eventbrite requests are proxied through the local server so the
   // private OAuth token never reaches the browser.  The Vite dev server
-  // proxies "/events" to the Express server defined under ./server.
+  // proxies "/events" to the Express server defined under ./backend.
   private readonly baseUrl = '/events';
 
   async fetchBerlinEvents(area?: string, page = 1, pageSize = 50) {
