@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
-import { EventsServiceEnhanced as EventsService } from '@/services/eventsServiceEnhanced';
+import { EventsService } from '@/services/eventsService';
 import { StandardizedEvent, EventFilters } from '@/types/events';
 
 export const useEvents = () => {
