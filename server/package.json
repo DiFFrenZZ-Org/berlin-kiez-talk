@@ -8,7 +8,7 @@
     "dev": "nodemon src/index.js",
     "scrape-events": "node ./scripts/scrapeBerlinEvents.js",
     "lint": "eslint .",
-    "test": "echo \"No tests specified\" && exit 0"
+    "test": "vitest run --root ."
   },
   "license": "MIT",
   "dependencies": {
@@ -21,6 +21,8 @@
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
-    "nodemon": "^3.1.10"
+    "nodemon": "^3.1.10",
+    "supertest": "^6.3.3",
+    "vitest": "^1.5.0"
   }
 }
