@@ -45,6 +45,8 @@ export class NewsApiService {
         url:           a.url,
         image_url:     a.urlToImage ?? null,
         source:        a.source?.name ?? 'NewsAPI',
+        author:        a.author ?? null,
+        content:       a.content ?? null
       }));
     } catch (err) {
       /* 🔴  centralised error capture */
@@ -62,7 +64,7 @@ export class NewsApiService {
       q: '"Berlin" AND culture',
       from: fromISO,
       to:   toISO,
-      language: 'de,en',
+      language: 'en',
       sortBy: 'publishedAt',
     });
   }

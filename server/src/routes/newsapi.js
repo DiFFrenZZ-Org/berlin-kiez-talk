@@ -28,7 +28,9 @@ router.get('/', async (req, res) => {
 
   // Default: Berlin AND culture, last 24 h, German or English
   if (!params.has('q'))        params.set('q', '"Berlin" AND culture');
-  if (!params.has('language')) params.set('language', 'de,en');
+  /*
+  if (!params.has('language')) params.set('language', 'en');
+  */
   if (!params.has('from')) {
     const yesterday = new Date(Date.now() - 24*60*60*1000).toISOString();
     params.set('from', yesterday);
