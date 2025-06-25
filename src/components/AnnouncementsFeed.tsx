@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 
 import { NewsApiService } from '@/services/newsApi';
 import type { NewsArticle } from '@/types/news';          // ✅ use app-level model
+import { count } from 'console';
 
 export const AnnouncementsFeed = () => {
   const [news,    setNews   ] = useState<NewsArticle[]>([]);
@@ -18,16 +19,18 @@ export const AnnouncementsFeed = () => {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const from = new Date(Date.now() - 24 * 60 * 60 * 1_000).toISOString();
+      const from = new Date(Date.now() - 3 * 24 * 60 * 60 * 1_000).toISOString();
       const to   = new Date().toISOString();
 
       // 📡 call the generic fetcher with explicit params
       const articles = await service.fetchNews({
-        q: '"Berlin" AND culture',
+        q: '"Berlin" OR "Berlin-Brandenburg" OR "Berlin Brandenburg"',
         from, to,
-        language: 'de,en',
-        sortBy: 'publishedAt',
-        pageSize: '50'
+        language: 'de',
+        country: 'de',
+        sortBy: 'relevancy',
+        pageSize: '5',
+        page: '2',
       });
 
       setNews(articles);

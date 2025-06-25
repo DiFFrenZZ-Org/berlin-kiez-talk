@@ -61,11 +61,12 @@ export class NewsApiService {
    */
   fetchBerlinNews(fromISO: string, toISO: string) {
     return this.fetchNews({
-      q: '"Berlin" AND culture',
+      q: 'apple',
       from: fromISO,
       to:   toISO,
       language: 'en',
-      sortBy: 'publishedAt',
+      sortBy: 'popularity',
+      pageSize: '1'
     });
   }
 }

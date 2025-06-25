@@ -27,15 +27,16 @@ router.get('/', async (req, res) => {
   });
 
   // Default: Berlin AND culture, last 24 h, German or English
-  if (!params.has('q'))        params.set('q', '"Berlin" AND culture');
   /*
+  if (!params.has('q'))        params.set('q', 'Berlin');
+
   if (!params.has('language')) params.set('language', 'en');
-  */
+
   if (!params.has('from')) {
     const yesterday = new Date(Date.now() - 24*60*60*1000).toISOString();
     params.set('from', yesterday);
   }
-
+  */
   try {
     const r = await fetch(`https://newsapi.org/v2/everything?${params}`, {
       headers: { 'X-Api-Key': process.env.NEWSAPI_KEY ?? '' } // safer than query-string :contentReference[oaicite:2]{index=2}

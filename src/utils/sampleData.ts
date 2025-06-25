@@ -42,26 +42,21 @@ export const generateSampleEvents = (): StandardizedEvent[] => {
   ];
 };
 
-export const generateSampleNews = () => {
-  return [
-    {
-      id: 'news-1',
-      title: 'New Bike Lanes Coming to Friedrichshain',
-      content: 'The district will add 5km of protected bike lanes to improve cycling safety.',
-      created_at: new Date().toISOString(),
-      borough: 'Friedrichshain',
-      category: 'Transportation'
-    },
-    {
-      id: 'news-2',
-      title: 'Community Garden Project in Neukölln',
-      content: 'Residents can now apply to participate in the new community garden initiative.',
-      created_at: new Date(Date.now() - 86400000).toISOString(), // Yesterday
-      borough: 'Neukölln',
-      category: 'Community'
-    }
-  ];
-};
+export const generateSampleNews = () => [
+  {
+    /* id + created_at omitted → Supabase fills them in */
+    title: 'New Bike Lanes Coming to Friedrichshain',
+    content: 'The district will add 5 km of protected bike lanes to improve cycling safety.',
+    borough: 'Friedrichshain',
+    category: 'Transportation',
+  },
+  {
+    title: 'Community Garden Project in Neukölln',
+    content: 'Residents can now apply to participate in the new community garden initiative.',
+    borough: 'Neukölln',
+    category: 'Community',
+  },
+];
 
 export const generateSampleChats = () => {
   return [

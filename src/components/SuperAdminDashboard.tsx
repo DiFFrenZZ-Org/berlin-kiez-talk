@@ -14,9 +14,9 @@ interface SuperAdminDashboardProps {
   userProfile: UserProfile;
 }
 
-const RoleCard = ({ 
-  role, 
-  onSwitchBack 
+const RoleCard = ({
+  role,
+  onSwitchBack
 }: {
   role: 'seller' | 'buyer';
   onSwitchBack: () => void;
@@ -28,9 +28,9 @@ const RoleCard = ({
           <Crown className="h-5 w-5 text-yellow-400" />
           <span className="text-sm">Super Admin Mode - Viewing as {role.charAt(0).toUpperCase() + role.slice(1)}</span>
         </div>
-        <Button 
-          onClick={onSwitchBack} 
-          variant="outline" 
+        <Button
+          onClick={onSwitchBack}
+          variant="outline"
           size="sm"
           className="bg-white/10 border-white/20 text-white hover:bg-white/20"
         >
@@ -74,9 +74,9 @@ export const SuperAdminDashboard = ({ userProfile }: SuperAdminDashboardProps) =
   if (viewAsRole === 'seller') {
     return (
       <div className="space-y-4">
-        <RoleCard 
-          role="seller" 
-          onSwitchBack={() => handleRoleSwitch('super_admin')} 
+        <RoleCard
+          role="seller"
+          onSwitchBack={() => handleRoleSwitch('super_admin')}
         />
         <SellerDashboard userProfile={userProfile} />
       </div>
@@ -86,9 +86,9 @@ export const SuperAdminDashboard = ({ userProfile }: SuperAdminDashboardProps) =
   if (viewAsRole === 'buyer') {
     return (
       <div className="space-y-4">
-        <RoleCard 
-          role="buyer" 
-          onSwitchBack={() => handleRoleSwitch('super_admin')} 
+        <RoleCard
+          role="buyer"
+          onSwitchBack={() => handleRoleSwitch('super_admin')}
         />
         <BuyerDashboard userProfile={userProfile} />
       </div>
@@ -109,23 +109,23 @@ export const SuperAdminDashboard = ({ userProfile }: SuperAdminDashboardProps) =
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <StatsCard 
-              icon={Users} 
-              title="Total Users" 
-              value="Admin Access" 
-              color="text-blue-300" 
+            <StatsCard
+              icon={Users}
+              title="Total Users"
+              value="Admin Access"
+              color="text-blue-300"
             />
-            <StatsCard 
-              icon={Store} 
-              title="System Status" 
-              value={<Badge className="bg-green-600">Active</Badge>} 
-              color="text-green-300" 
+            <StatsCard
+              icon={Store}
+              title="System Status"
+              value={<Badge className="bg-green-600">Active</Badge>}
+              color="text-green-300"
             />
-            <StatsCard 
-              icon={Crown} 
-              title="Admin Level" 
-              value="Super" 
-              color="text-yellow-300" 
+            <StatsCard
+              icon={Crown}
+              title="Admin Level"
+              value="Super"
+              color="text-yellow-300"
             />
           </div>
 
@@ -135,15 +135,15 @@ export const SuperAdminDashboard = ({ userProfile }: SuperAdminDashboardProps) =
               Switch between different user roles to test the dashboard experience:
             </p>
             <div className="flex space-x-2">
-              <Button 
-                onClick={() => handleRoleSwitch('seller')} 
+              <Button
+                onClick={() => handleRoleSwitch('seller')}
                 className="bg-blue-600 hover:bg-blue-700"
               >
                 <Store className="h-4 w-4 mr-2" />
                 View as Seller
               </Button>
-              <Button 
-                onClick={() => handleRoleSwitch('buyer')} 
+              <Button
+                onClick={() => handleRoleSwitch('buyer')}
                 className="bg-green-600 hover:bg-green-700"
               >
                 <Users className="h-4 w-4 mr-2" />
