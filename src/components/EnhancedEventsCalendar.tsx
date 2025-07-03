@@ -10,18 +10,21 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { EventsList } from "@/components/events/EventsList";
 import { UpcomingEvents } from "@/components/events/UpcomingEvents";
 import { EventFilters } from "@/components/events/EventFilters";
 import { useEvents } from "@/hooks/useEvents";
 import { StandardizedEvent } from "@/types/events";
 import { BERLIN_AREAS } from "@/constants/berlin";
+import { useNavigate } from "react-router-dom";
 
 export const EnhancedEventsCalendar = () => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedArea, setSelectedArea] = useState("all_areas");
+  const navigate = useNavigate();
 
   const {
     events,
@@ -78,6 +81,11 @@ export const EnhancedEventsCalendar = () => {
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => navigate('/create-party')}>
+          Plan a Party
+        </Button>
+      </div>
       {/* Desktop Layout */}
       <div className="hidden lg:grid lg:grid-cols-12 gap-6 h-[calc(100vh-200px)]">
         {/* Calendar - 4 columns */}

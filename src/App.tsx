@@ -13,6 +13,7 @@ const Index = lazy(() => import("./pages/Index"));
 const ProfilePage = lazy(() => import("./pages/Profile"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const ChatTest = lazy(() => import("./pages/ChatTest"));
+const CreateParty = lazy(() => import("./pages/CreateParty"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -51,6 +52,7 @@ const App = () => (
                 <Route path="/" element={<Index />} />
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/chat-test" element={<ChatTest />} />
+                <Route path="/create-party" element={<CreateParty />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
