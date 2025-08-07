@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 const Index = lazy(() => import("./routes/index"));
 const ProfilePage = lazy(() => import("./routes/profile"));
+const PublicProfilePage = lazy(() => import("./routes/public-profile"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const ChatTest = lazy(() => import("./routes/chat-test"));
 
@@ -50,6 +51,7 @@ const App = () => (
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/u/:username" element={<PublicProfilePage />} />
                 <Route path="/chat-test" element={<ChatTest />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
